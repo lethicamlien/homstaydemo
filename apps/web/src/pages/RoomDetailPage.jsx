@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import SiteLayout from "@/components/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
 import { api, fmt, overlaps } from "@/lib/store";
+import DateInput from "@/components/DateInput";
 
 // Lucide Icons
 import {
@@ -293,13 +294,12 @@ export default function RoomDetailPage() {
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
                   <CalendarCheck className="w-4 h-4 text-primary" /> Ngày nhận
                 </Label>
-                <Input
-                  type="date"
-                  min={today}
-                  value={b.checkIn}
-                  onChange={handleCheckInChange}
-                  className="bg-background"
-                />
+               <DateInput
+        minDate={today}
+        value={b.checkIn}
+        onChange={handleCheckInChange}
+        className="bg-background"
+      />
               </div>
 
               {/* Ngày trả - Chỉ chọn > ngày nhận */}
@@ -307,13 +307,12 @@ export default function RoomDetailPage() {
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
                   <CalendarX className="w-4 h-4 text-primary" /> Ngày trả
                 </Label>
-                <Input
-                  type="date"
-                  min={b.checkIn || today}
-                  value={b.checkOut}
-                  onChange={(e) => setB({ ...b, checkOut: e.target.value })}
-                  className="bg-background"
-                />
+                <DateInput
+        minDate={b.checkIn || today}
+        value={b.checkOut}
+        onChange={(e) => setB({ ...b, checkOut: e.target.value })}
+        className="bg-background"
+      />
               </div>
 
               {/* Loại phòng (Readonly) */}

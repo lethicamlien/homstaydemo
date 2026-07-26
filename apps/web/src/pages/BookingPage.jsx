@@ -137,53 +137,71 @@ export default function BookingPage() {
                   Chọn thêm dịch vụ đi kèm để nâng cao trải nghiệm lưu trú
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {services.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg gap-4 bg-card hover:bg-accent/5 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-16 h-16 rounded-md bg-cover bg-center bg-muted shrink-0 border"
-                        style={{ backgroundImage: `url(${s.image})` }}
-                      />
-                      <div>
-                        <p className="font-semibold">{s.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {fmtVND(s.price)} / {s.unit}
-                          {s.perDay && (
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              x {n} ngày
-                            </Badge>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 self-end sm:self-center">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8 rounded-full"
-                        onClick={() => bump(s.id, -1)}
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </Button>
-                      <span className="w-8 text-center font-semibold text-sm">
-                        {qty[s.id] || 0}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8 rounded-full"
-                        onClick={() => bump(s.id, 1)}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
+             <CardContent className="space-y-4">
+  {services.map((s) => {
+    // 1. Lấy tên file ảnh (xử lý cả trường hợp s.image là mảng hoặc chuỗi)
+    const imageName = Array.isArray(s.image) ? s.image[0] : s.image;
+
+    // 2. Tạo URL đầy đủ từ PocketBase Client
+    const imageUrl = (s && imageName) ? pb.files.getUrl(s, imageName) : null;
+
+    return (
+      <div
+        key={s.id}
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg gap-4 bg-card hover:bg-accent/5 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          {/* HIỂN THỊ ẢNH (Khuyên dùng thẻ img để tự động căn tỉ lệ đẹp hơn) */}
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={s.name}
+              className="w-16 h-16 rounded-md object-cover shrink-0 border"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-md bg-muted shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
+              Không ảnh
+            </div>
+          )}
+
+          <div>
+            <p className="font-semibold">{s.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {fmtVND(s.price)} / {s.unit}
+              {s.perDay && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  x {n} ngày
+                </Badge>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-center">
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-8 w-8 rounded-full"
+            onClick={() => bump(s.id, -1)}
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </Button>
+          <span className="w-8 text-center font-semibold text-sm">
+            {qty[s.id] || 0}
+          </span>
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-8 w-8 rounded-full"
+            onClick={() => bump(s.id, 1)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+    );
+  })}
+</CardContent>
             </Card>
 
             {/* CARD 2: ĐIỀN THÔNG TIN ĐẶT PHÒNG */}
