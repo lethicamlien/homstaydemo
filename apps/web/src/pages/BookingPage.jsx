@@ -1,133 +1,401 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import SiteLayout from "@/components/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
-import { api, fmt, fmtVND, nights, genCode, fmtDate } from "@/lib/store";
-import { Minus, Plus, Copy, CheckCircle2 } from "lucide-react";
+import { api, fmtVND, nights, genCode, fmtDate } from "@/lib/store";
 import { useAuth } from "@/lib/AuthContext";
+
+// Lucide Icons
+import { 
+  Minus, 
+  Plus, 
+  Copy, 
+  Check, 
+  CreditCard, 
+  Wallet, 
+  Users, 
+  Bed, 
+  ConciergeBell,
+  AlertCircle
+} from "lucide-react";
+
+// shadcn/ui components
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 export default function BookingPage() {
   const loc = useLocation();
   const nav = useNavigate();
   const { user } = useAuth();
   const st = loc.state;
+
   const [services, setServices] = useState([]);
   const [qty, setQty] = useState({});
-  const [info, setInfo] = useState({ guestName: user?.fullName || "", guestPhone: user?.phone || "", guestEmail: user?.email || "", guestAddress: "", note: "" });
+  const [copied, setCopied] = useState(false);
+  const [info, setInfo] = useState({
+    guestName: user?.fullName || "",
+    guestPhone: user?.phone || "",
+    guestEmail: user?.email || "",
+    guestAddress: "",
+    note: "",
+  });
   const [pay, setPay] = useState("cash");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
-  useEffect(() => { api.services().then(setServices).catch(() => {}); }, []);
+  useEffect(() => {
+    api.services().then(setServices).catch(() => {});
+  }, []);
+
   if (!st?.room) return <Navigate to="/rooms" replace />;
 
   const n = nights(st.checkIn, st.checkOut);
   const roomTotal = st.room.price * n;
-  const svcDetail = services.map((s) => ({ ...s, count: qty[s.id] || 0 }))
+  
+  const svcDetail = services
+    .map((s) => ({ ...s, count: qty[s.id] || 0 }))
     .filter((s) => s.count > 0)
-    .map((s) => ({ name: s.name, count: s.count, unitPrice: s.price, amount: s.price * s.count * (s.perDay ? n : 1) }));
+    .map((s) => ({
+      name: s.name,
+      count: s.count,
+      unitPrice: s.price,
+      amount: s.price * s.count * (s.perDay ? n : 1),
+    }));
+    
   const svcTotal = svcDetail.reduce((a, s) => a + s.amount, 0);
   const total = roomTotal + svcTotal;
 
   const bump = (id, d) => setQty((q) => ({ ...q, [id]: Math.max(0, (q[id] || 0) + d) }));
 
+  const copySTK = () => {
+    navigator.clipboard?.writeText("035120003566");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const submit = async () => {
     setErr("");
-    if (!info.guestName || !info.guestPhone || !info.guestEmail || !info.guestAddress) return setErr("Vui lòng điền đầy đủ các trường bắt buộc (*).");
+    if (!info.guestName || !info.guestPhone || !info.guestEmail || !info.guestAddress) {
+      return setErr("Vui lòng điền đầy đủ các trường bắt buộc (*).");
+    }
     setSaving(true);
     try {
       const rec = await pb.collection("bookings").create({
-        code: genCode(), customer: user?.id || null,
-        roomCode: st.room.code, roomTypeName: st.room.typeName,
-        guestName: info.guestName, guestPhone: info.guestPhone, guestEmail: info.guestEmail,
-        guestAddress: info.guestAddress, note: info.note, guests: Number(st.guests) || 1,
-        checkIn: st.checkIn, checkOut: st.checkOut, nights: n,
-        roomPrice: st.room.price, servicesTotal: svcTotal, servicesDetail: svcDetail,
-        total, payMethod: pay, payStatus: pay === "transfer" ? "deposit" : "unpaid",
+        code: genCode(),
+        customer: user?.id || null,
+        roomCode: st.room.code,
+        roomTypeName: st.room.typeName,
+        guestName: info.guestName,
+        guestPhone: info.guestPhone,
+        guestEmail: info.guestEmail,
+        guestAddress: info.guestAddress,
+        note: info.note,
+        guests: Number(st.guests) || 1,
+        checkIn: st.checkIn,
+        checkOut: st.checkOut,
+        nights: n,
+        roomPrice: st.room.price,
+        servicesTotal: svcTotal,
+        servicesDetail: svcDetail,
+        total,
+        payMethod: pay,
+        payStatus: pay === "transfer" ? "paid" : "unpaid", // 🟢 Nếu chuyển khoản thì đánh dấu là đã thanh toán toàn bộ (paid)
         status: "pending",
       });
       nav("/success/" + rec.id, { replace: true });
-    } catch (e) { setErr("Đặt phòng thất bại. Vui lòng thử lại."); }
-    finally { setSaving(false); }
+    } catch (e) {
+      setErr("Đặt phòng thất bại. Vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <SiteLayout>
-      <div className="max-w-[80rem] mx-auto px-5 py-10">
-        <h1 className="font-display text-4xl font-extrabold text-center">Thông tin đặt phòng</h1>
-        <div className="grid lg:grid-cols-3 gap-8 mt-8">
-          <div className="lg:col-span-2 space-y-8">
-            <div>
-              <h3 className="font-display text-xl font-bold text-primary">Lựa chọn dịch vụ</h3>
-              <div className="mt-3 space-y-3">
+      <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
+        <h1 className="font-display text-3xl md:text-4xl font-extrabold text-center mb-8">
+          Thông tin đặt phòng
+        </h1>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* CỘT TRÁI: DỊCH VỤ, THÔNG TIN & THANH TOÁN */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* CARD 1: LỰA CHỌN DỊCH VỤ */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2 text-primary">
+                  <ConciergeBell className="w-5 h-5" /> Lựa chọn dịch vụ
+                </CardTitle>
+                <CardDescription>
+                  Chọn thêm dịch vụ đi kèm để nâng cao trải nghiệm lưu trú
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 {services.map((s) => (
-                  <div key={s.id} className="flex items-center gap-4 bg-card border border-border rounded-xl p-3">
-                    <div className="w-20 h-16 rounded-lg bg-cover bg-center bg-secondary" style={{ backgroundImage: `url(${s.image})` }} />
-                    <div className="flex-1">
-                      <p className="font-semibold">{s.name}</p>
-                      <p className="text-sm text-muted-foreground">Giá: {fmtVND(s.price)}/{s.unit}{s.perDay ? " (x số ngày)" : ""}</p>
-                    </div>
+                  <div
+                    key={s.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg gap-4 bg-card hover:bg-accent/5 transition-colors"
+                  >
                     <div className="flex items-center gap-3">
-                      <button onClick={() => bump(s.id, -1)} className="w-8 h-8 rounded-full border border-border flex items-center justify-center"><Minus className="w-4 h-4" /></button>
-                      <span className="w-6 text-center font-semibold">{qty[s.id] || 0}</span>
-                      <button onClick={() => bump(s.id, 1)} className="w-8 h-8 rounded-full border border-border flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                      <div
+                        className="w-16 h-16 rounded-md bg-cover bg-center bg-muted shrink-0 border"
+                        style={{ backgroundImage: `url(${s.image})` }}
+                      />
+                      <div>
+                        <p className="font-semibold">{s.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {fmtVND(s.price)} / {s.unit}
+                          {s.perDay && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              x {n} ngày
+                            </Badge>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => bump(s.id, -1)}
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </Button>
+                      <span className="w-8 text-center font-semibold text-sm">
+                        {qty[s.id] || 0}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => bump(s.id, 1)}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div>
-              <h3 className="font-display text-xl font-bold text-primary">Điền thông tin đặt phòng</h3>
-              <div className="grid md:grid-cols-2 gap-4 mt-3">
-                {[["guestName", "Họ và tên *"], ["guestPhone", "Số điện thoại *"], ["guestEmail", "Email *"], ["guestAddress", "Địa chỉ *"]].map(([k, l]) => (
-                  <label key={k} className="text-sm font-semibold">{l}
-                    <input value={info[k]} onChange={(e) => setInfo({ ...info, [k]: e.target.value })} className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary" /></label>
-                ))}
-                <label className="text-sm font-semibold md:col-span-2">Ghi chú
-                  <textarea value={info.note} onChange={(e) => setInfo({ ...info, note: e.target.value })} className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary" rows={2} /></label>
-              </div>
-            </div>
+            {/* CARD 2: ĐIỀN THÔNG TIN ĐẶT PHÒNG */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2 text-primary">
+                  <Users className="w-5 h-5" /> Điền thông tin đặt phòng
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="guestName">Họ và tên *</Label>
+                    <Input
+                      id="guestName"
+                      value={info.guestName}
+                      onChange={(e) => setInfo({ ...info, guestName: e.target.value })}
+                      placeholder="Nguyễn Văn A"
+                    />
+                  </div>
 
-            <div>
-              <h3 className="font-display text-xl font-bold text-primary">Phương thức thanh toán</h3>
-              <div className="mt-3 space-y-3">
-                <button onClick={() => setPay("cash")} className={`w-full text-left p-3 rounded-xl border ${pay === "cash" ? "border-primary bg-primary/5" : "border-border"}`}>Thanh toán khi nhận phòng</button>
-                <button onClick={() => setPay("transfer")} className={`w-full text-left p-3 rounded-xl border ${pay === "transfer" ? "border-primary bg-primary/5" : "border-border"}`}>Chuyển khoản giữ phòng</button>
-              </div>
-              {pay === "transfer" && (
-                <div className="mt-3 bg-secondary rounded-xl p-4 text-sm space-y-1">
-                  <p className="font-semibold text-primary">Thông tin chuyển khoản giữ phòng</p>
-                  <p>Ngân hàng: <b>Vietcombank</b></p>
-                  <p className="flex items-center gap-2">Số tài khoản: <b>0351 2000 3566</b>
-                    <button onClick={() => navigator.clipboard?.writeText("035120003566")} className="text-primary"><Copy className="w-4 h-4" /></button></p>
-                  <p>Chủ tài khoản: <b>NUI HOMESTAY</b></p>
-                  <p>Số tiền giữ phòng: <b className="text-accent">{fmtVND(Math.round(total * 0.3))}</b> (30%)</p>
-                  <p className="text-muted-foreground">Nội dung: <b>{info.guestPhone || "SĐT"} {st.room.code}</b></p>
+                  <div className="space-y-2">
+                    <Label htmlFor="guestPhone">Số điện thoại *</Label>
+                    <Input
+                      id="guestPhone"
+                      value={info.guestPhone}
+                      onChange={(e) => setInfo({ ...info, guestPhone: e.target.value })}
+                      placeholder="0901234567"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="guestEmail">Email *</Label>
+                    <Input
+                      id="guestEmail"
+                      type="email"
+                      value={info.guestEmail}
+                      onChange={(e) => setInfo({ ...info, guestEmail: e.target.value })}
+                      placeholder="example@gmail.com"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="guestAddress">Địa chỉ *</Label>
+                    <Input
+                      id="guestAddress"
+                      value={info.guestAddress}
+                      onChange={(e) => setInfo({ ...info, guestAddress: e.target.value })}
+                      placeholder="Thành phố, Tỉnh thành"
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="note">Ghi chú thêm</Label>
+                  <Textarea
+                    id="note"
+                    value={info.note}
+                    onChange={(e) => setInfo({ ...info, note: e.target.value })}
+                    placeholder="Yêu cầu đặc biệt về phòng, thời gian check-in..."
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* CARD 3: PHƯƠNG THỨC THANH TOÁN */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2 text-primary">
+                  <CreditCard className="w-5 h-5" /> Phương thức thanh toán
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <RadioGroup value={pay} onValueChange={setPay} className="space-y-3">
+                  <div
+                    className={`flex items-center space-x-3 border p-4 rounded-xl cursor-pointer transition-colors ${
+                      pay === "cash" ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => setPay("cash")}
+                  >
+                    <RadioGroupItem value="cash" id="pay-cash" />
+                    <Label htmlFor="pay-cash" className="cursor-pointer flex items-center gap-2 font-medium">
+                      <Wallet className="w-4 h-4 text-muted-foreground" />
+                      Thanh toán khi nhận phòng (Trực tiếp)
+                    </Label>
+                  </div>
+
+                  <div
+                    className={`flex items-center space-x-3 border p-4 rounded-xl cursor-pointer transition-colors ${
+                      pay === "transfer" ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => setPay("transfer")}
+                  >
+                    <RadioGroupItem value="transfer" id="pay-transfer" />
+                    <Label htmlFor="pay-transfer" className="cursor-pointer flex items-center gap-2 font-medium">
+                      <CreditCard className="w-4 h-4 text-muted-foreground" />
+                      Chuyển khoản ngân hàng (Thanh toán 100%)
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {pay === "transfer" && (
+                  <Card className="bg-muted/50 border-dashed border-primary/40 mt-4">
+                    <CardContent className="p-4 space-y-2 text-sm">
+                      <p className="font-semibold text-primary">Thông tin chuyển khoản thanh toán</p>
+                      <div className="grid grid-cols-2 gap-1 text-muted-foreground">
+                        <span>Ngân hàng:</span>
+                        <span className="font-medium text-foreground">Vietcombank</span>
+
+                        <span>Chủ tài khoản:</span>
+                        <span className="font-medium text-foreground">NUI HOMESTAY</span>
+
+                        <span>Số tài khoản:</span>
+                        <span className="font-medium text-foreground flex items-center gap-2">
+                          0351 2000 3566
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={copySTK}
+                          >
+                            {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          </Button>
+                        </span>
+
+                        <span>Số tiền thanh toán:</span>
+                        <span className="font-bold text-primary">
+                          {fmtVND(total)}
+                        </span>
+
+                        <span>Nội dung CK:</span>
+                        <span className="font-medium text-foreground">
+                          {info.guestPhone || "SDT"} {st.room.code}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="bg-card border border-border rounded-2xl p-6 h-fit sticky top-20">
-            <h3 className="font-display text-xl font-bold text-center">Chi tiết đặt phòng</h3>
-            <div className="mt-4 space-y-2 text-sm">
-              <Row l="Ngày nhận" v={fmtDate(st.checkIn)} /><Row l="Ngày trả" v={fmtDate(st.checkOut)} />
-              <Row l="Số người" v={st.guests} /><Row l="Tên phòng" v={st.room.code} />
-              <Row l="Loại phòng" v={st.room.typeName} /><Row l="Số ngày" v={n} />
-              <Row l="Giá" v={fmtVND(st.room.price)} /><Row l="Thành tiền" v={fmtVND(roomTotal)} />
-              {svcDetail.length > 0 && <div className="pt-2 border-t border-border font-semibold">Dịch vụ</div>}
-              {svcDetail.map((s) => <Row key={s.name} l={`${s.name} x${s.count}`} v={fmtVND(s.amount)} />)}
-              <div className="pt-3 border-t border-border flex justify-between text-base">
-                <b>Tổng thanh toán</b><b className="text-accent">{fmtVND(total)}</b>
-              </div>
-            </div>
-            {err && <p className="text-destructive text-sm mt-3">{err}</p>}
-            <button onClick={submit} disabled={saving} className="w-full mt-4 py-3 rounded-full bg-accent text-accent-foreground font-semibold hover:brightness-105 disabled:opacity-60">{saving ? "Đang xử lý..." : "Đặt phòng"}</button>
+          {/* CỘT PHẢI: TÓM TẮT ĐẶT PHÒNG */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-20 shadow-md">
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="text-xl">Chi tiết đặt phòng</CardTitle>
+                <Badge variant="secondary" className="w-fit mx-auto mt-1">
+                  <Bed className="w-3.5 h-3.5 mr-1" /> Phòng {st.room.code}
+                </Badge>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <Row l="Loại phòng" v={st.room.typeName} />
+                <Row l="Nhận phòng" v={fmtDate(st.checkIn)} />
+                <Row l="Trả phòng" v={fmtDate(st.checkOut)} />
+                <Row l="Thời gian" v={`${n} đêm`} />
+                <Row l="Số lượng khách" v={`${st.guests} người`} />
+
+                <Separator className="my-2" />
+
+                <Row l="Giá phòng / đêm" v={fmtVND(st.room.price)} />
+                <Row l="Tiền phòng tạm tính" v={fmtVND(roomTotal)} />
+
+                {svcDetail.length > 0 && (
+                  <>
+                    <Separator className="my-2" />
+                    <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+                      Dịch vụ bổ sung
+                    </p>
+                    {svcDetail.map((s) => (
+                      <Row key={s.name} l={`${s.name} (x${s.count})`} v={fmtVND(s.amount)} />
+                    ))}
+                  </>
+                )}
+
+                <Separator className="my-3" />
+
+                <div className="flex justify-between items-baseline pt-1">
+                  <span className="font-bold text-base">Tổng thanh toán</span>
+                  <span className="font-extrabold text-xl text-primary">{fmtVND(total)}</span>
+                </div>
+
+                {err && (
+                  <Alert variant="destructive" className="mt-4 py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{err}</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+
+              <CardFooter className="pt-2">
+                <Button
+                  onClick={submit}
+                  disabled={saving}
+                  className="w-full text-base font-semibold py-6 rounded-xl shadow-lg"
+                  size="lg"
+                >
+                  {saving ? "Đang xử lý..." : "Xác nhận đặt phòng"}
+                </Button>
+              </CardFooter>
+            </Card>
           </div>
         </div>
       </div>
     </SiteLayout>
   );
 }
-const Row = ({ l, v }) => <div className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-medium">{v}</span></div>;
+
+const Row = ({ l, v }) => (
+  <div className="flex justify-between items-center">
+    <span className="text-muted-foreground">{l}</span>
+    <span className="font-medium text-right">{v}</span>
+  </div>
+);
