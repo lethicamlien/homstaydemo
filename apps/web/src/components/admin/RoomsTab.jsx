@@ -134,48 +134,75 @@ export default function RoomsTab({ rooms, types, del, load }) {
     }
   };
 
-  const handleSaveRoomType = async (e) => {
-    e.preventDefault();
+  // --- LƯU / CẬP NHẬT LOẠI PHÒNG ---
+const handleSaveRoomType = async (e) => {
+  e.preventDefault();
+  const formattedCode = typeForm.code.trim().toUpperCase();
 
-    const formattedCode = typeForm.code.trim().toUpperCase();
+  const isDuplicate = types.some((t) => {
+    if (editingTypeId && t.id === editingTypeId) return false;
+    return t.code && t.code.trim().toUpperCase() === formattedCode;
+  });
 
-    // 1. Kiểm tra trùng MÃ LOẠI PHÒNG (Code)
-    const isDuplicate = types.some((t) => {
-      if (editingTypeId && t.id === editingTypeId) return false;
-      return t.code && t.code.trim().toUpperCase() === formattedCode;
-    });
+  if (isDuplicate) {
+    alert(`Mã loại phòng "${formattedCode}" đã tồn tại! Vui lòng nhập mã khác.`);
+    return;
+  }
 
-    if (isDuplicate) {
-      alert(`Mã loại phòng "${formattedCode}" đã tồn tại! Vui lòng nhập mã khác.`);
-      return;
-    }
+  try {
+    const newPrice = Number(typeForm.price);
+    const payload = {
+      code: formattedCode,
+      name: typeForm.name,
+      price: newPrice,
+      quantity: Number(typeForm.quantity),
+    };
 
-    try {
-      // Chuẩn hóa đúng cấu trúc field trên PocketBase
-      const payload = {
-        code: formattedCode,
-        name: typeForm.name,
-        price: Number(typeForm.price),
-        quantity: Number(typeForm.quantity), // Lưu đúng vào cột quantity
-      };
+    if (editingTypeId) {
+      // 1. Lấy thông tin loại phòng cũ trước khi cập nhật để lấy name/id
+      const currentType = types.find((t) => t.id === editingTypeId);
 
-      if (editingTypeId) {
-        await pb.collection("room_types").update(editingTypeId, payload);
-      } else {
-        await pb.collection("room_types").create({
-          ...payload,
-          status: "active",
-        });
+      // 2. Cập nhật Loại Phòng
+      await pb.collection("room_types").update(editingTypeId, payload);
+
+      // 3. TÌM VÀ CẬP NHẬT TẤT CẢ CÁC PHÒNG TƯƠNG ỨNG BÊN BẢNG ROOMS
+      if (currentType) {
+        // Tìm các phòng có `typeName` khớp với tên loại phòng vừa sửa
+        // (Hoặc lọc theo room_type_id nếu bạn có lưu ID)
+        const matchingRooms = rooms.filter(
+          (r) => r.typeName === currentType.name || r.room_type_id === editingTypeId
+        );
+
+        // Chạy vòng lặp cập nhật giá mới cho từng phòng
+        const updatePromises = matchingRooms.map((room) =>
+          pb.collection("rooms").update(room.id, {
+            price: newPrice,
+            typeName: typeForm.name, // Đồng bộ luôn cả tên nếu người dùng có đổi tên loại phòng
+            room_type_id: editingTypeId, // Gán luôn ID để liên kết dữ liệu chuẩn
+          })
+        );
+
+        await Promise.all(updatePromises);
       }
-
-      setShowModal(false);
-      setTypeForm({ code: "", name: "", price: "", quantity: "" });
-      load();
-    } catch (err) {
-      console.error("Lỗi PocketBase:", err);
-      alert("Lỗi khi lưu loại phòng! Hãy đảm bảo bạn đã tạo cột 'code' trong PocketBase.");
+    } else {
+      // Tạo mới loại phòng
+      await pb.collection("room_types").create({
+        ...payload,
+        status: "active",
+      });
     }
-  };
+
+    setShowModal(false);
+    setTypeForm({ code: "", name: "", price: "", quantity: "" });
+    
+    // 4. Tải lại toàn bộ dữ liệu -> Trang Quản trị và Trang chủ sẽ phản ánh giá mới lập tức
+    load();
+    alert("Cập nhật loại phòng và đồng bộ giá các phòng thành công!");
+  } catch (err) {
+    console.error("Lỗi PocketBase:", err);
+    alert(`Lỗi khi lưu loại phòng: ${err.message}`);
+  }
+};
 
   return (
     <>
