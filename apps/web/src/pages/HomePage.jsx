@@ -227,51 +227,68 @@ export default function HomePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {rooms.map((r) => (
-            <Card
-              key={r.id}
-              className="group overflow-hidden border-border/60 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-            >
-              <div>
-                <div className="relative h-56 overflow-hidden">
-                  <div
-                    className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
-                    style={{ backgroundImage: `url(${(r.images || [])[0]})` }}
-                  />
-                  <Badge className="absolute top-3 right-3 font-mono" variant="secondary">
-                    {r.code}
-                  </Badge>
-                </div>
+       {/* PHÒNG NỔI BẬT */}
+{/* PHÒNG NỔI BẬT */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  {rooms.map((r) => {
+    // 📍 1. Bắt cả 2 dạng key expand của PocketBase (có _id và không có _id)
+    const typeInfo = r.expand?.room_type_id || r.expand?.room_type;
 
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold flex justify-between items-center">
-                    {r.typeName}
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    {r.beds} · Phù hợp cho khách
-                  </CardDescription>
-                </CardHeader>
-              </div>
+    // 📍 2. Ưu tiên lấy giá từ loại phòng, nếu có
+    const roomPrice = typeInfo?.price !== undefined ? typeInfo.price : r.price;
 
-              <CardContent className="pt-0 space-y-4">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-extrabold text-primary">
-                    {fmt(r.price)}
-                  </span>
-                  <span className="text-xs text-muted-foreground font-normal">/ đêm</span>
-                </div>
+    // 📍 3. Lấy ảnh trực tiếp từ phòng
+    const roomImage =
+      r.images && r.images.length > 0
+        ? r.images[0]
+        : "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=1000";
 
-                <Button
-                  onClick={() => nav("/rooms/" + r.id)}
-                  className="w-full font-semibold rounded-full"
-                >
-                  Xem chi tiết
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+    return (
+      <Card
+        key={r.id}
+        className="group overflow-hidden border-border/60 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+      >
+        <div>
+          <div className="relative h-56 overflow-hidden">
+            <div
+              className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
+              style={{ backgroundImage: `url(${roomImage})` }}
+            />
+            <Badge className="absolute top-3 right-3 font-mono" variant="secondary">
+              {r.code}
+            </Badge>
+          </div>
+
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl font-bold flex justify-between items-center">
+              {typeInfo?.name || r.typeName}
+            </CardTitle>
+            <CardDescription className="text-sm">
+              {r.beds || "Giường đôi"} · Phù hợp cho khách
+            </CardDescription>
+          </CardHeader>
         </div>
+
+        <CardContent className="pt-0 space-y-4">
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-extrabold text-primary">
+              {/* 📍 Hiển thị giá chuẩn đã xử lý */}
+              {fmt(roomPrice)}
+            </span>
+            <span className="text-xs text-muted-foreground font-normal">/ đêm</span>
+          </div>
+
+          <Button
+            onClick={() => nav("/rooms/" + r.id)}
+            className="w-full font-semibold rounded-full"
+          >
+            Xem chi tiết
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  })}
+</div>
       </section>
 
       {/* CÁC TIỆN NGHI */}

@@ -7,8 +7,10 @@ export default function RoomsTab({ rooms, types, del, load }) {
   const [subTab, setSubTab] = useState("roomList");
   const [showModal, setShowModal] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState(null);
+  const [editingTypeId, setEditingTypeId] = useState(null);
 
-  const [typeForm, setTypeForm] = useState({ code: "", name: "", price: "", count: "" });
+  // Cập nhật typeForm dùng field 'quantity' khớp với PocketBase
+  const [typeForm, setTypeForm] = useState({ code: "", name: "", price: "", quantity: "" });
   const [roomForm, setRoomForm] = useState({
     code: "",
     typeName: "Phòng đơn",
@@ -39,6 +41,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
     }
   };
 
+  // --- XỬ LÝ MODAL PHÒNG ---
   const handleOpenEditModal = (room) => {
     setEditingRoomId(room.id);
     setRoomForm({
@@ -55,11 +58,33 @@ export default function RoomsTab({ rooms, types, del, load }) {
   };
 
   const handleOpenAddModal = () => {
-    setEditingRoomId(null);
-    setRoomForm({
-      code: "", typeName: types[0]?.name || "Phòng đơn", price: types[0]?.price || "",
-      area: "Tầng 1", rules: "Cấm hút thuốc", amenities: "Wifi, Điều hòa",
-      description: "Phòng tiện nghi tại Núi Homestay.", images: [],
+    if (subTab === "roomTypes") {
+      setEditingTypeId(null);
+      setTypeForm({ code: "", name: "", price: "", quantity: "" });
+    } else {
+      setEditingRoomId(null);
+      setRoomForm({
+        code: "",
+        typeName: types[0]?.name || "Phòng đơn",
+        price: types[0]?.price || "",
+        area: "Tầng 1",
+        rules: "Cấm hút thuốc",
+        amenities: "Wifi, Điều hòa",
+        description: "Phòng tiện nghi tại Núi Homestay.",
+        images: [],
+      });
+    }
+    setShowModal(true);
+  };
+
+  // --- XỬ LÝ MODAL LOẠI PHÒNG ---
+  const handleOpenEditTypeModal = (type) => {
+    setEditingTypeId(type.id);
+    setTypeForm({
+      code: type.code || "",
+      name: type.name || "",
+      price: type.price || "",
+      quantity: type.quantity ?? 1, // Đã đổi sang quantity
     });
     setShowModal(true);
   };
@@ -111,15 +136,44 @@ export default function RoomsTab({ rooms, types, del, load }) {
 
   const handleSaveRoomType = async (e) => {
     e.preventDefault();
+
+    const formattedCode = typeForm.code.trim().toUpperCase();
+
+    // 1. Kiểm tra trùng MÃ LOẠI PHÒNG (Code)
+    const isDuplicate = types.some((t) => {
+      if (editingTypeId && t.id === editingTypeId) return false;
+      return t.code && t.code.trim().toUpperCase() === formattedCode;
+    });
+
+    if (isDuplicate) {
+      alert(`Mã loại phòng "${formattedCode}" đã tồn tại! Vui lòng nhập mã khác.`);
+      return;
+    }
+
     try {
-      await pb.collection("room_types").create({
-        code: typeForm.code, name: typeForm.name, price: Number(typeForm.price), count: Number(typeForm.count), status: "active",
-      });
+      // Chuẩn hóa đúng cấu trúc field trên PocketBase
+      const payload = {
+        code: formattedCode,
+        name: typeForm.name,
+        price: Number(typeForm.price),
+        quantity: Number(typeForm.quantity), // Lưu đúng vào cột quantity
+      };
+
+      if (editingTypeId) {
+        await pb.collection("room_types").update(editingTypeId, payload);
+      } else {
+        await pb.collection("room_types").create({
+          ...payload,
+          status: "active",
+        });
+      }
+
       setShowModal(false);
-      setTypeForm({ code: "", name: "", price: "", count: "" });
+      setTypeForm({ code: "", name: "", price: "", quantity: "" });
       load();
-    } catch {
-      alert("Lỗi khi thêm loại phòng!");
+    } catch (err) {
+      console.error("Lỗi PocketBase:", err);
+      alert("Lỗi khi lưu loại phòng! Hãy đảm bảo bạn đã tạo cột 'code' trong PocketBase.");
     }
   };
 
@@ -160,7 +214,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
           <table className="w-full text-sm">
             <thead className="bg-sky-200/80 text-sky-950 font-bold">
               <tr>
-                {["Mã loại phòng", "Tên loại phòng", "Giá phòng", "Số lượng", "Trạng thái", ""].map((h) => (
+                {["Mã loại phòng", "Tên loại phòng", "Giá phòng", "Số lượng", "Trạng thái", "Thao tác"].map((h) => (
                   <th key={h} className="text-left p-3">{h}</th>
                 ))}
               </tr>
@@ -168,17 +222,25 @@ export default function RoomsTab({ rooms, types, del, load }) {
             <tbody>
               {types.map((t) => (
                 <tr key={t.id} className="border-t border-border hover:bg-secondary/30">
-                  <td className="p-3 font-semibold">{t.code || "L001"}</td>
+                  <td className="p-3 font-semibold">{t.code || "---"}</td>
                   <td className="p-3">{t.name}</td>
                   <td className="p-3">{fmt(t.price)}</td>
-                  <td className="p-3 font-bold">{t.count || 1}</td>
+                  {/* Đọc trực tiếp trường quantity từ PocketBase */}
+                  <td className="p-3 font-bold">{t.quantity ?? 1}</td>
                   <td className="p-3">
                     <span className="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
                       Đang hoạt động
                     </span>
                   </td>
                   <td className="p-3">
-                    <button onClick={() => del("room_types", t.id)} className="text-rose-500 hover:opacity-80"><Trash2 className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => del("room_types", t.id)} className="text-rose-500 hover:opacity-80" title="Xóa">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleOpenEditTypeModal(t)} className="text-emerald-500 hover:opacity-80" title="Chỉnh sửa">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -247,7 +309,9 @@ export default function RoomsTab({ rooms, types, del, load }) {
           <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl border border-border text-slate-900 relative my-8">
             {subTab === "roomTypes" ? (
               <div>
-                <h3 className="text-xl font-bold mb-6">Thêm mới loại phòng</h3>
+                <h3 className="text-xl font-bold mb-6">
+                  {editingTypeId ? "Chỉnh sửa loại phòng" : "Thêm mới loại phòng"}
+                </h3>
                 <form onSubmit={handleSaveRoomType} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -266,7 +330,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-600 block mb-1">Số lượng</label>
-                      <input required type="number" placeholder="2" value={typeForm.count} onChange={(e) => setTypeForm({ ...typeForm, count: e.target.value })} className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500" />
+                      <input required type="number" min="1" placeholder="4" value={typeForm.quantity} onChange={(e) => setTypeForm({ ...typeForm, quantity: e.target.value })} className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500" />
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 pt-6">
