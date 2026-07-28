@@ -1,16 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SiteLayout from "@/components/SiteLayout";
+import SearchBar from "@/components/SearchBar"; // 🟢 Đã thêm import SearchBar
 import { api, fmt } from "@/lib/store";
-import DateInput from "@/components/DateInput";
+import pb from "@/lib/pocketbaseClient";
 
 // Lucide Icons
 import {
-  CalendarCheck,
-  CalendarX,
-  Users,
-  Home,
-  Search,
   Wifi,
   Tv,
   Snowflake,
@@ -31,15 +27,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 // Danh sách ảnh trình chiếu ở phần "Về chúng tôi"
@@ -50,102 +37,23 @@ const ABOUT_IMAGES = [
   "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1000",
 ];
 
-function SearchBar({ onSearch }) {
-  const [f, setF] = useState({ checkIn: "", checkOut: "", guests: 2, type: "" });
-
-  return (
-    <Card className="max-w-4xl mx-auto shadow-2xl border-border/50 bg-background/95 backdrop-blur">
-      <CardContent className="p-4 md:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
-          {/* Ngày nhận */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <CalendarCheck className="w-3.5 h-3.5 text-primary" />
-              Ngày nhận
-            </Label>
-           <DateInput
-  value={f.checkIn}
-  onChange={(e) => setF({ ...f, checkIn: e.target.value })}
-  className="bg-muted/50"
-/>
-          </div>
-
-          {/* Ngày trả */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <CalendarX className="w-3.5 h-3.5 text-primary" />
-              Ngày trả
-            </Label>
-           
-<DateInput
-  minDate={f.checkIn} 
-  value={f.checkOut}
-  onChange={(e) => setF({ ...f, checkOut: e.target.value })}
-  className="bg-muted/50"
-/>
-          </div>
-
-          {/* Số khách */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-primary" />
-              Số khách
-            </Label>
-            <Input
-              type="number"
-              min={1}
-              value={f.guests}
-              onChange={(e) => setF({ ...f, guests: e.target.value })}
-              className="bg-muted/50"
-            />
-          </div>
-
-          {/* Loại phòng */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Home className="w-3.5 h-3.5 text-primary" />
-              Loại phòng
-            </Label>
-            <Select
-              value={f.type}
-              onValueChange={(val) => setF({ ...f, type: val === "all" ? "" : val })}
-            >
-              <SelectTrigger className="bg-muted/50">
-                <SelectValue placeholder="Tất cả" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="Phòng đơn">Phòng đơn</SelectItem>
-                <SelectItem value="Phòng đôi">Phòng đôi</SelectItem>
-                <SelectItem value="Phòng gia đình">Phòng gia đình</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Nút tìm kiếm */}
-          <Button
-            onClick={() => onSearch(f)}
-            className="w-full font-semibold gap-2 shadow-md"
-            size="lg"
-          >
-            <Search className="w-4 h-4" />
-            Tìm kiếm
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function HomePage() {
   const nav = useNavigate();
   const [rooms, setRooms] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
 
   useEffect(() => {
+    // 1. Lấy danh sách 3 phòng nổi bật
     api
       .rooms()
-      .then((r) => setRooms(r.slice(0, 3)))
+      .then((r) => setRooms((r || []).slice(0, 3)))
+      .catch(() => {});
+
+    // 2. Lấy danh sách Loại phòng từ PocketBase
+    pb.collection("room_types")
+      .getFullList({ sort: "name" })
+      .then((data) => setRoomTypes(data || []))
       .catch(() => {});
   }, []);
 
@@ -156,12 +64,6 @@ export default function HomePage() {
     }, 4000);
     return () => clearInterval(timer);
   }, []);
-
-  const go = (f) => {
-    const q = new URLSearchParams();
-    Object.entries(f).forEach(([k, v]) => v && q.set(k, v));
-    nav("/rooms?" + q.toString());
-  };
 
   const amenities = [
     { i: Wifi, t: "Wifi" },
@@ -203,7 +105,14 @@ export default function HomePage() {
 
         {/* SEARCH BAR OVERLAP */}
         <div className="relative -mt-20 px-4 sm:px-6 pb-8 z-10">
-          <SearchBar onSearch={go} />
+          <SearchBar
+            roomTypes={roomTypes}
+            onSearch={(f) => {
+              const q = new URLSearchParams();
+              Object.entries(f).forEach(([k, v]) => v && q.set(k, v));
+              nav("/rooms?" + q.toString());
+            }}
+          />
         </div>
       </section>
 
@@ -227,68 +136,60 @@ export default function HomePage() {
           </Button>
         </div>
 
-       {/* PHÒNG NỔI BẬT */}
-{/* PHÒNG NỔI BẬT */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-  {rooms.map((r) => {
-    // 📍 1. Bắt cả 2 dạng key expand của PocketBase (có _id và không có _id)
-    const typeInfo = r.expand?.room_type_id || r.expand?.room_type;
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {rooms.map((r) => {
+            const typeInfo = r.expand?.room_type_id || r.expand?.room_type;
+            const roomPrice = typeInfo?.price ?? r.price ?? 0;
+            const roomImage =
+              r.images && r.images.length > 0
+                ? r.images[0]
+                : "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=1000";
 
-    // 📍 2. Ưu tiên lấy giá từ loại phòng, nếu có
-    const roomPrice = typeInfo?.price !== undefined ? typeInfo.price : r.price;
+            return (
+              <Card
+                key={r.id}
+                className="group overflow-hidden border-border/60 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative h-56 overflow-hidden">
+                    <div
+                      className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
+                      style={{ backgroundImage: `url(${roomImage})` }}
+                    />
+                    <Badge className="absolute top-3 right-3 font-mono" variant="secondary">
+                      #{r.code}
+                    </Badge>
+                  </div>
 
-    // 📍 3. Lấy ảnh trực tiếp từ phòng
-    const roomImage =
-      r.images && r.images.length > 0
-        ? r.images[0]
-        : "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=1000";
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold flex justify-between items-center">
+                      {typeInfo?.name || "Chưa phân loại"}
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      {r.beds || "Giường đôi"} · Phù hợp cho khách
+                    </CardDescription>
+                  </CardHeader>
+                </div>
 
-    return (
-      <Card
-        key={r.id}
-        className="group overflow-hidden border-border/60 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-      >
-        <div>
-          <div className="relative h-56 overflow-hidden">
-            <div
-              className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
-              style={{ backgroundImage: `url(${roomImage})` }}
-            />
-            <Badge className="absolute top-3 right-3 font-mono" variant="secondary">
-              {r.code}
-            </Badge>
-          </div>
+                <CardContent className="pt-0 space-y-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-extrabold text-primary">
+                      {fmt(roomPrice)}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-normal">/ đêm</span>
+                  </div>
 
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-bold flex justify-between items-center">
-              {typeInfo?.name || r.typeName}
-            </CardTitle>
-            <CardDescription className="text-sm">
-              {r.beds || "Giường đôi"} · Phù hợp cho khách
-            </CardDescription>
-          </CardHeader>
+                  <Button
+                    onClick={() => nav("/rooms/" + r.id)}
+                    className="w-full font-semibold rounded-full"
+                  >
+                    Xem chi tiết
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
-
-        <CardContent className="pt-0 space-y-4">
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold text-primary">
-              {/* 📍 Hiển thị giá chuẩn đã xử lý */}
-              {fmt(roomPrice)}
-            </span>
-            <span className="text-xs text-muted-foreground font-normal">/ đêm</span>
-          </div>
-
-          <Button
-            onClick={() => nav("/rooms/" + r.id)}
-            className="w-full font-semibold rounded-full"
-          >
-            Xem chi tiết
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  })}
-</div>
       </section>
 
       {/* CÁC TIỆN NGHI */}
@@ -317,13 +218,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* VỀ CHÚNG TÔI (BỔ SUNG SLIDER ẢNH) */}
+      {/* VỀ CHÚNG TÔI */}
       <section
         id="gioi-thieu"
         className="max-w-7xl mx-auto px-4 sm:px-6 py-16 grid md:grid-cols-2 gap-10 items-center"
       >
         <div className="relative group h-80 rounded-2xl overflow-hidden shadow-lg border border-border/40">
-          {/* Slider hình ảnh */}
           <div
             className="w-full h-full bg-cover bg-center transition-all duration-700 ease-in-out"
             style={{
@@ -331,7 +231,6 @@ export default function HomePage() {
             }}
           />
 
-          {/* Nút lướt ảnh sang trái/phải */}
           <Button
             size="icon"
             variant="ghost"
@@ -350,7 +249,6 @@ export default function HomePage() {
             <ChevronRight className="w-5 h-5" />
           </Button>
 
-          {/* Chấm chỉ số trang ảnh (Indicators) */}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
             {ABOUT_IMAGES.map((_, idx) => (
               <button
@@ -383,11 +281,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* LIÊN HỆ (BỔ SUNG BẢN ĐỒ GOOGLE MAPS) */}
+      {/* LIÊN HỆ */}
       <section id="lien-he" className="max-w-7xl mx-auto px-4 sm:px-6 pb-12">
         <Card className="border-border/60 overflow-hidden">
           <div className="grid md:grid-cols-3">
-            {/* Khối thông tin liên hệ */}
             <div className="bg-primary/5 p-8 flex flex-col justify-center space-y-4 md:col-span-1">
               <div>
                 <Badge variant="outline" className="text-primary border-primary/30 mb-2">
@@ -415,7 +312,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Khối nhúng Google Maps */}
             <div className="h-64 md:h-auto min-h-[250px] md:col-span-2 relative bg-muted">
               <iframe
                 title="Google Maps Nui Homestay"

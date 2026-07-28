@@ -56,8 +56,12 @@ export default function BookingPage() {
 
   if (!st?.room) return <Navigate to="/rooms" replace />;
 
+  // 🟢 LẤY GIÁ PHÒNG VÀ TÊN LOẠI PHÒNG TỪ EXPAND (HOẶC FALLBACK)
+  const roomPrice = st.room.expand?.room_type_id?.price ?? st.room.price ?? 0;
+  const roomTypeName = st.room.expand?.room_type_id?.name ?? st.room.typeName ?? "";
+
   const n = nights(st.checkIn, st.checkOut);
-  const roomTotal = st.room.price * n;
+  const roomTotal = roomPrice * n;
   
   const svcDetail = services
     .map((s) => ({ ...s, count: qty[s.id] || 0 }))
@@ -91,7 +95,7 @@ export default function BookingPage() {
         code: genCode(),
         customer: user?.id || null,
         roomCode: st.room.code,
-        roomTypeName: st.room.typeName,
+        roomTypeName: roomTypeName, // 🟢 Đã dùng biến roomTypeName từ expand
         guestName: info.guestName,
         guestPhone: info.guestPhone,
         guestEmail: info.guestEmail,
@@ -101,12 +105,12 @@ export default function BookingPage() {
         checkIn: st.checkIn,
         checkOut: st.checkOut,
         nights: n,
-        roomPrice: st.room.price,
+        roomPrice: roomPrice, // 🟢 Đã dùng biến roomPrice từ expand
         servicesTotal: svcTotal,
         servicesDetail: svcDetail,
         total,
         payMethod: pay,
-        payStatus: pay === "transfer" ? "paid" : "unpaid", // 🟢 Nếu chuyển khoản thì đánh dấu là đã thanh toán toàn bộ (paid)
+        payStatus: pay === "transfer" ? "paid" : "unpaid",
         status: "pending",
       });
       nav("/success/" + rec.id, { replace: true });
@@ -137,71 +141,67 @@ export default function BookingPage() {
                   Chọn thêm dịch vụ đi kèm để nâng cao trải nghiệm lưu trú
                 </CardDescription>
               </CardHeader>
-             <CardContent className="space-y-4">
-  {services.map((s) => {
-    // 1. Lấy tên file ảnh (xử lý cả trường hợp s.image là mảng hoặc chuỗi)
-    const imageName = Array.isArray(s.image) ? s.image[0] : s.image;
+              <CardContent className="space-y-4">
+                {services.map((s) => {
+                  const imageName = Array.isArray(s.image) ? s.image[0] : s.image;
+                  const imageUrl = (s && imageName) ? pb.files.getUrl(s, imageName) : null;
 
-    // 2. Tạo URL đầy đủ từ PocketBase Client
-    const imageUrl = (s && imageName) ? pb.files.getUrl(s, imageName) : null;
+                  return (
+                    <div
+                      key={s.id}
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg gap-4 bg-card hover:bg-accent/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={s.name}
+                            className="w-16 h-16 rounded-md object-cover shrink-0 border"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-md bg-muted shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
+                            Không ảnh
+                          </div>
+                        )}
 
-    return (
-      <div
-        key={s.id}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg gap-4 bg-card hover:bg-accent/5 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          {/* HIỂN THỊ ẢNH (Khuyên dùng thẻ img để tự động căn tỉ lệ đẹp hơn) */}
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={s.name}
-              className="w-16 h-16 rounded-md object-cover shrink-0 border"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-md bg-muted shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
-              Không ảnh
-            </div>
-          )}
+                        <div>
+                          <p className="font-semibold">{s.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {fmtVND(s.price)} / {s.unit}
+                            {s.perDay && (
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                x {n} ngày
+                              </Badge>
+                            )}
+                          </p>
+                        </div>
+                      </div>
 
-          <div>
-            <p className="font-semibold">{s.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {fmtVND(s.price)} / {s.unit}
-              {s.perDay && (
-                <Badge variant="outline" className="ml-2 text-xs">
-                  x {n} ngày
-                </Badge>
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 rounded-full"
-            onClick={() => bump(s.id, -1)}
-          >
-            <Minus className="w-3.5 h-3.5" />
-          </Button>
-          <span className="w-8 text-center font-semibold text-sm">
-            {qty[s.id] || 0}
-          </span>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8 rounded-full"
-            onClick={() => bump(s.id, 1)}
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-    );
-  })}
-</CardContent>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => bump(s.id, -1)}
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </Button>
+                        <span className="w-8 text-center font-semibold text-sm">
+                          {qty[s.id] || 0}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => bump(s.id, 1)}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
             </Card>
 
             {/* CARD 2: ĐIỀN THÔNG TIN ĐẶT PHÒNG */}
@@ -355,7 +355,8 @@ export default function BookingPage() {
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <Row l="Loại phòng" v={st.room.typeName} />
+                {/* 🟢 Hiển thị tên loại phòng và giá lấy từ Relation */}
+                <Row l="Loại phòng" v={roomTypeName} />
                 <Row l="Nhận phòng" v={fmtDate(st.checkIn)} />
                 <Row l="Trả phòng" v={fmtDate(st.checkOut)} />
                 <Row l="Thời gian" v={`${n} đêm`} />
@@ -363,7 +364,7 @@ export default function BookingPage() {
 
                 <Separator className="my-2" />
 
-                <Row l="Giá phòng / đêm" v={fmtVND(st.room.price)} />
+                <Row l="Giá phòng / đêm" v={fmtVND(roomPrice)} />
                 <Row l="Tiền phòng tạm tính" v={fmtVND(roomTotal)} />
 
                 {svcDetail.length > 0 && (

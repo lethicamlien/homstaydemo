@@ -9,27 +9,18 @@ export default function RoomsTab({ rooms, types, del, load }) {
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [editingTypeId, setEditingTypeId] = useState(null);
 
-  // Cập nhật typeForm dùng field 'quantity' khớp với PocketBase
   const [typeForm, setTypeForm] = useState({ code: "", name: "", price: "", quantity: "" });
+  
+  // Xóa 'price' và 'typeName', thay bằng 'room_type_id'
   const [roomForm, setRoomForm] = useState({
     code: "",
-    typeName: "Phòng đơn",
-    price: "",
+    room_type_id: "",
     area: "Tầng 1",
     rules: "Cấm hút thuốc",
     amenities: "Wifi, Điều hòa",
     description: "Phòng tiện nghi tại Núi Homestay.",
     images: [],
   });
-
-  const handleTypeChange = (selectedTypeName) => {
-    const matchedType = types.find((t) => t.name === selectedTypeName);
-    setRoomForm((prev) => ({
-      ...prev,
-      typeName: selectedTypeName,
-      price: matchedType ? matchedType.price : prev.price,
-    }));
-  };
 
   const toggleRoomStatus = async (room) => {
     const newStatus = room.status === "active" ? "inactive" : "active";
@@ -46,8 +37,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
     setEditingRoomId(room.id);
     setRoomForm({
       code: room.code || "",
-      typeName: room.typeName || "Phòng đơn",
-      price: room.price || "",
+      room_type_id: room.room_type_id || types[0]?.id || "",
       area: room.area || "Tầng 1",
       rules: Array.isArray(room.rules) ? room.rules.join(", ") : room.rules || "",
       amenities: Array.isArray(room.amenities) ? room.amenities.join(", ") : room.amenities || "",
@@ -65,8 +55,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
       setEditingRoomId(null);
       setRoomForm({
         code: "",
-        typeName: types[0]?.name || "Phòng đơn",
-        price: types[0]?.price || "",
+        room_type_id: types[0]?.id || "",
         area: "Tầng 1",
         rules: "Cấm hút thuốc",
         amenities: "Wifi, Điều hòa",
@@ -84,7 +73,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
       code: type.code || "",
       name: type.name || "",
       price: type.price || "",
-      quantity: type.quantity ?? 1, // Đã đổi sang quantity
+      quantity: type.quantity ?? 1,
     });
     setShowModal(true);
   };
@@ -110,10 +99,10 @@ export default function RoomsTab({ rooms, types, del, load }) {
       const amenitiesArr = roomForm.amenities.split(",").map((s) => s.trim()).filter(Boolean);
       const rulesArr = roomForm.rules.split(",").map((s) => s.trim()).filter(Boolean);
 
+      // Payload gọn gàng, KHÔNG gửi price và typeName dư thừa nữa
       const payload = {
         code: roomForm.code,
-        typeName: roomForm.typeName,
-        price: Number(roomForm.price),
+        room_type_id: roomForm.room_type_id,
         area: roomForm.area,
         description: roomForm.description,
         amenities: amenitiesArr,
@@ -134,75 +123,44 @@ export default function RoomsTab({ rooms, types, del, load }) {
     }
   };
 
-  // --- LƯU / CẬP NHẬT LOẠI PHÒNG ---
-const handleSaveRoomType = async (e) => {
-  e.preventDefault();
-  const formattedCode = typeForm.code.trim().toUpperCase();
+  // --- LƯU / CẬP NHẬT LOẠI PHÒNG (Đã bỏ toàn bộ code sync cồng kềnh) ---
+  const handleSaveRoomType = async (e) => {
+    e.preventDefault();
+    const formattedCode = typeForm.code.trim().toUpperCase();
 
-  const isDuplicate = types.some((t) => {
-    if (editingTypeId && t.id === editingTypeId) return false;
-    return t.code && t.code.trim().toUpperCase() === formattedCode;
-  });
+    const isDuplicate = types.some((t) => {
+      if (editingTypeId && t.id === editingTypeId) return false;
+      return t.code && t.code.trim().toUpperCase() === formattedCode;
+    });
 
-  if (isDuplicate) {
-    alert(`Mã loại phòng "${formattedCode}" đã tồn tại! Vui lòng nhập mã khác.`);
-    return;
-  }
-
-  try {
-    const newPrice = Number(typeForm.price);
-    const payload = {
-      code: formattedCode,
-      name: typeForm.name,
-      price: newPrice,
-      quantity: Number(typeForm.quantity),
-    };
-
-    if (editingTypeId) {
-      // 1. Lấy thông tin loại phòng cũ trước khi cập nhật để lấy name/id
-      const currentType = types.find((t) => t.id === editingTypeId);
-
-      // 2. Cập nhật Loại Phòng
-      await pb.collection("room_types").update(editingTypeId, payload);
-
-      // 3. TÌM VÀ CẬP NHẬT TẤT CẢ CÁC PHÒNG TƯƠNG ỨNG BÊN BẢNG ROOMS
-      if (currentType) {
-        // Tìm các phòng có `typeName` khớp với tên loại phòng vừa sửa
-        // (Hoặc lọc theo room_type_id nếu bạn có lưu ID)
-        const matchingRooms = rooms.filter(
-          (r) => r.typeName === currentType.name || r.room_type_id === editingTypeId
-        );
-
-        // Chạy vòng lặp cập nhật giá mới cho từng phòng
-        const updatePromises = matchingRooms.map((room) =>
-          pb.collection("rooms").update(room.id, {
-            price: newPrice,
-            typeName: typeForm.name, // Đồng bộ luôn cả tên nếu người dùng có đổi tên loại phòng
-            room_type_id: editingTypeId, // Gán luôn ID để liên kết dữ liệu chuẩn
-          })
-        );
-
-        await Promise.all(updatePromises);
-      }
-    } else {
-      // Tạo mới loại phòng
-      await pb.collection("room_types").create({
-        ...payload,
-        status: "active",
-      });
+    if (isDuplicate) {
+      alert(`Mã loại phòng "${formattedCode}" đã tồn tại! Vui lòng nhập mã khác.`);
+      return;
     }
 
-    setShowModal(false);
-    setTypeForm({ code: "", name: "", price: "", quantity: "" });
-    
-    // 4. Tải lại toàn bộ dữ liệu -> Trang Quản trị và Trang chủ sẽ phản ánh giá mới lập tức
-    load();
-    alert("Cập nhật loại phòng và đồng bộ giá các phòng thành công!");
-  } catch (err) {
-    console.error("Lỗi PocketBase:", err);
-    alert(`Lỗi khi lưu loại phòng: ${err.message}`);
-  }
-};
+    try {
+      const payload = {
+        code: formattedCode,
+        name: typeForm.name,
+        price: Number(typeForm.price),
+        quantity: Number(typeForm.quantity),
+      };
+
+      if (editingTypeId) {
+        await pb.collection("room_types").update(editingTypeId, payload);
+      } else {
+        await pb.collection("room_types").create({ ...payload, status: "active" });
+      }
+
+      setShowModal(false);
+      setTypeForm({ code: "", name: "", price: "", quantity: "" });
+      load();
+      alert("Lưu loại phòng thành công!");
+    } catch (err) {
+      console.error("Lỗi PocketBase:", err);
+      alert(`Lỗi khi lưu loại phòng: ${err.message}`);
+    }
+  };
 
   return (
     <>
@@ -252,7 +210,6 @@ const handleSaveRoomType = async (e) => {
                   <td className="p-3 font-semibold">{t.code || "---"}</td>
                   <td className="p-3">{t.name}</td>
                   <td className="p-3">{fmt(t.price)}</td>
-                  {/* Đọc trực tiếp trường quantity từ PocketBase */}
                   <td className="p-3 font-bold">{t.quantity ?? 1}</td>
                   <td className="p-3">
                     <span className="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
@@ -287,45 +244,50 @@ const handleSaveRoomType = async (e) => {
               </tr>
             </thead>
             <tbody>
-              {rooms.map((r) => (
-                <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
-                  <td className="p-3 font-semibold">{r.code}</td>
-                  <td className="p-3">{r.typeName}</td>
-                  <td className="p-3">{fmt(r.price)}</td>
-                  <td className="p-3">{r.area}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      r.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                    }`}>
-                      {r.status === "active" ? "Đang hoạt động" : "Ngừng kinh doanh"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    {r.images && r.images.length > 0 ? (
-                      <img src={r.images[0]} alt="Room" className="w-12 h-9 object-cover rounded-md border" />
-                    ) : (
-                      <div className="w-12 h-9 bg-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400">Ảnh</div>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => del("rooms", r.id)} className="text-rose-500 hover:opacity-80" title="Xóa">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleOpenEditModal(r)} className="text-emerald-500 hover:opacity-80" title="Chỉnh sửa">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => toggleRoomStatus(r)}
-                        className={`hover:opacity-80 transition-colors ${r.status === "active" ? "text-emerald-500" : "text-rose-500"}`}
-                        title={r.status === "active" ? "Ngừng kinh doanh" : "Kích hoạt"}
-                      >
-                        <Power className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {rooms.map((r) => {
+                // Lấy thông tin từ expand hoặc fallback vào object types
+                const roomType = r.expand?.room_type_id || types.find(t => t.id === r.room_type_id);
+                return (
+                  <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
+                    <td className="p-3 font-semibold">{r.code}</td>
+                    {/* Hiển thị Tên loại phòng & Giá lấy từ Room Type liên kết */}
+                    <td className="p-3">{roomType?.name || "N/A"}</td>
+                    <td className="p-3">{fmt(roomType?.price || 0)}</td>
+                    <td className="p-3">{r.area}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        r.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                      }`}>
+                        {r.status === "active" ? "Đang hoạt động" : "Ngừng kinh doanh"}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      {r.images && r.images.length > 0 ? (
+                        <img src={r.images[0]} alt="Room" className="w-12 h-9 object-cover rounded-md border" />
+                      ) : (
+                        <div className="w-12 h-9 bg-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400">Ảnh</div>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => del("rooms", r.id)} className="text-rose-500 hover:opacity-80" title="Xóa">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleOpenEditModal(r)} className="text-emerald-500 hover:opacity-80" title="Chỉnh sửa">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => toggleRoomStatus(r)}
+                          className={`hover:opacity-80 transition-colors ${r.status === "active" ? "text-emerald-500" : "text-rose-500"}`}
+                          title={r.status === "active" ? "Ngừng kinh doanh" : "Kích hoạt"}
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -373,7 +335,7 @@ const handleSaveRoomType = async (e) => {
                 </h3>
 
                 <form onSubmit={handleSaveRoom} className="space-y-6">
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className="text-xs font-semibold text-gray-600 block mb-1">Tên phòng</label>
                       <input
@@ -383,23 +345,16 @@ const handleSaveRoomType = async (e) => {
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Tên loại phòng ˅</label>
+                      <label className="text-xs font-semibold text-gray-600 block mb-1">Loại phòng ˅</label>
                       <select
-                        value={roomForm.typeName} onChange={(e) => handleTypeChange(e.target.value)}
+                        value={roomForm.room_type_id} 
+                        onChange={(e) => setRoomForm({ ...roomForm, room_type_id: e.target.value })}
                         className="w-full border-b border-gray-400 py-1 focus:outline-none bg-transparent cursor-pointer"
                       >
                         {types.map((t) => (
-                          <option key={t.id} value={t.name}>{t.name}</option>
+                          <option key={t.id} value={t.id}>{t.name} ({fmt(t.price)})</option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Giá</label>
-                      <input
-                        required type="number" placeholder="300000" value={roomForm.price}
-                        onChange={(e) => setRoomForm({ ...roomForm, price: e.target.value })}
-                        className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500"
-                      />
                     </div>
                   </div>
 

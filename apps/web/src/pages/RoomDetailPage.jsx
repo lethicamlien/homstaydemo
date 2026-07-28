@@ -62,10 +62,13 @@ export default function RoomDetailPage() {
 
   useEffect(() => {
     pb.collection("rooms")
-      .getOne(id)
+      .getOne(id, { expand: "room_type_id,room_type" })
       .then((r) => {
         setRoom(r);
-        setB((s) => ({ ...s, type: r.typeName }));
+        // 🟢 Lấy tên loại phòng từ expand room_types
+        const roomTypeObj = r.expand?.room_type_id || r.expand?.room_type;
+        const roomTypeName = roomTypeObj?.name || r.typeName || "";
+        setB((s) => ({ ...s, type: roomTypeName }));
       })
       .catch(() => {});
 
@@ -89,6 +92,14 @@ export default function RoomDetailPage() {
     );
   }
 
+  // 1. Lấy object room_type từ relation expand
+const roomType = room.expand?.room_type_id || room.expand?.room_type;
+
+// 2. Lấy tên loại phòng trực tiếp từ bảng room_types (nếu không có thì để mặc định)
+const roomTypeName = roomType?.name || "Chưa phân loại";
+
+// 3. Lấy giá phòng từ loại phòng (nếu không có thì mặc định là 0)
+const roomPrice = roomType?.price ?? 0;
   // Kiểm tra phòng có bị trùng lịch trong khoảng ngày được chọn hay không
   const busy =
     b.checkIn &&
@@ -156,7 +167,7 @@ export default function RoomDetailPage() {
                 >
                   <img
                     src={img}
-                    alt={`${room.typeName} ${idx}`}
+                    alt={`${roomTypeName} ${idx}`}
                     className="w-full h-full object-cover"
                   />
                 </button>
@@ -172,12 +183,13 @@ export default function RoomDetailPage() {
         <div className="lg:col-span-2 space-y-8">
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-primary">{fmt(room.price)}</span>
+              <span className="text-3xl font-extrabold text-primary">{fmt(roomPrice)}</span>
               <span className="text-sm text-muted-foreground">/ đêm</span>
             </div>
 
+            {/* 🟢 Hiển thị tên loại phòng từ room_types */}
             <h1 className="font-display text-3xl md:text-4xl font-extrabold mt-2">
-              {room.typeName} · {room.code}
+              {roomTypeName} · {room.code}
             </h1>
 
             <div className="flex flex-wrap items-center gap-4 mt-3 text-muted-foreground text-sm">
@@ -289,30 +301,30 @@ export default function RoomDetailPage() {
             </CardHeader>
 
             <CardContent className="pt-6 space-y-4">
-              {/* Ngày nhận - Chỉ chọn >= hôm nay */}
+              {/* Ngày nhận */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
                   <CalendarCheck className="w-4 h-4 text-primary" /> Ngày nhận
                 </Label>
-               <DateInput
-        minDate={today}
-        value={b.checkIn}
-        onChange={handleCheckInChange}
-        className="bg-background"
-      />
+                <DateInput
+                  minDate={today}
+                  value={b.checkIn}
+                  onChange={handleCheckInChange}
+                  className="bg-background"
+                />
               </div>
 
-              {/* Ngày trả - Chỉ chọn > ngày nhận */}
+              {/* Ngày trả */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
                   <CalendarX className="w-4 h-4 text-primary" /> Ngày trả
                 </Label>
                 <DateInput
-        minDate={b.checkIn || today}
-        value={b.checkOut}
-        onChange={(e) => setB({ ...b, checkOut: e.target.value })}
-        className="bg-background"
-      />
+                  minDate={b.checkIn || today}
+                  value={b.checkOut}
+                  onChange={(e) => setB({ ...b, checkOut: e.target.value })}
+                  className="bg-background"
+                />
               </div>
 
               {/* Loại phòng (Readonly) */}

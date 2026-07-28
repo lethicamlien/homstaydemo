@@ -26,7 +26,7 @@ export function genCode(prefix = "BK") {
 }
 
 export const api = {
-  rooms: () => pb.collection("rooms").getFullList({ sort: "code" }),
+  rooms: () => pb.collection("rooms").getFullList({ expand: "room_type_id" }),
   roomTypes: () => pb.collection("room_types").getFullList({ sort: "price" }),
   services: () => pb.collection("services").getFullList({ sort: "created" }),
   bookings: () => pb.collection("bookings").getFullList({ sort: "-created" }),
