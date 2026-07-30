@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { fmtVND, fmtDate } from "@/lib/store";
 
@@ -10,6 +11,25 @@ const ST = {
 };
 
 export default function BookingTable({ bookings, setStatus, del }) {
+  // 🟢 CÁCH 1: Tự động quét và cập nhật Database khi quá ngày trả phòng
+  useEffect(() => {
+    if (!bookings || bookings.length === 0) return;
+
+    // Lấy ngày hiện tại dạng YYYY-MM-DD
+    const today = new Date().toISOString().split("T")[0];
+
+    bookings.forEach((b) => {
+      // Chuyển b.checkOut về định dạng YYYY-MM-DD để so sánh chuẩn xác
+      const checkOutDate = new Date(b.checkOut).toISOString().split("T")[0];
+
+      // Nếu ngày trả < ngày hôm nay VÀ trạng thái vẫn là "Đang ở" hoặc "Đã xác nhận"
+      if (checkOutDate < today && (b.status === "checkedin" || b.status === "confirmed")) {
+        // Tự động gọi hàm setStatus để cập nhật DB sang "checkedout" (Đã trả phòng)
+        setStatus(b.id, "checkedout");
+      }
+    });
+  }, [bookings, setStatus]);
+
   return (
     <div className="bg-card border border-border rounded-xl overflow-x-auto shadow-sm">
       <table className="w-full text-sm min-w-[720px]">
@@ -24,13 +44,22 @@ export default function BookingTable({ bookings, setStatus, del }) {
           {bookings.map((b) => (
             <tr key={b.id} className="border-t border-border hover:bg-secondary/30">
               <td className="p-3 font-semibold text-primary">{b.code}</td>
-              <td className="p-3">{b.guestName}<br /><span className="text-xs text-muted-foreground">{b.guestPhone}</span></td>
+              <td className="p-3">
+                {b.guestName}<br />
+                <span className="text-xs text-muted-foreground">{b.guestPhone}</span>
+              </td>
               <td className="p-3">{b.roomTypeName}</td>
               <td className="p-3">{fmtDate(b.checkIn)} → {fmtDate(b.checkOut)}</td>
               <td className="p-3 font-semibold">{fmtVND(b.total)}</td>
               <td className="p-3">
-                <select value={b.status} onChange={(e) => setStatus(b.id, e.target.value)} className="bg-secondary rounded-lg px-2 py-1 font-semibold cursor-pointer border border-border">
-                  {Object.entries(ST).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                <select
+                  value={b.status}
+                  onChange={(e) => setStatus(b.id, e.target.value)}
+                  className="bg-secondary rounded-lg px-2 py-1 font-semibold cursor-pointer border border-border"
+                >
+                  {Object.entries(ST).map(([k, l]) => (
+                    <option key={k} value={k}>{l}</option>
+                  ))}
                 </select>
               </td>
               <td className="p-3">
@@ -42,7 +71,9 @@ export default function BookingTable({ bookings, setStatus, del }) {
           ))}
           {bookings.length === 0 && (
             <tr>
-              <td colSpan={7} className="text-center py-6 text-muted-foreground">Chưa có đơn đặt phòng nào.</td>
+              <td colSpan={7} className="text-center py-6 text-muted-foreground">
+                Chưa có đơn đặt phòng nào.
+              </td>
             </tr>
           )}
         </tbody>
