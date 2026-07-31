@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { api } from "@/lib/store";
@@ -22,7 +22,8 @@ const TABS = [
 ];
 
 export default function AdminPage() {
-  const { role } = useAuth();
+  const { logout } = useAuth();
+  const nav = useNavigate();
   const [tab, setTab] = useState("overview");
 
   const [rooms, setRooms] = useState([]);
@@ -42,8 +43,6 @@ export default function AdminPage() {
   };
 
   useEffect(() => { load(); }, []);
-
-  if (role !== "admin") return <Navigate to="/auth" replace />;
 
   const occupied = bookings.filter((b) => b.status === "checkedin").length;
   const revenue = bookings
@@ -70,20 +69,45 @@ export default function AdminPage() {
     load();
   };
 
+  const handleLogout = () => {
+    logout();
+    nav("/auth", { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* HEADER QUẢN TRỊ ADMIN - DÙNG RIÊNG ĐỘC LẬP */}
       <header className="bg-primary text-white px-5 h-14 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-          <span className="font-display font-extrabold flex items-center gap-1"><Palmtree className="w-5 h-5" /> Núi Homestay</span>
+          <button 
+            onClick={() => setTab("overview")} 
+            className="font-display font-extrabold flex items-center gap-1.5 hover:opacity-90 transition-opacity"
+          >
+            <Palmtree className="w-5 h-5 text-amber-400" /> Núi Homestay (Admin)
+          </button>
+
           {TABS.map((t) => (
-            <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-all ${tab === t.k ? "bg-white/25 font-bold" : "hover:bg-white/10"}`}>
+            <button 
+              key={t.k} 
+              onClick={() => setTab(t.k)} 
+              className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-all ${
+                tab === t.k ? "bg-white/25 font-bold" : "hover:bg-white/10"
+              }`}
+            >
               <t.i className="w-4 h-4" />{t.l}
             </button>
           ))}
         </div>
+
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">Quản Lý</span>
-          <Link to="/" className="text-white/80 hover:text-white"><LogOut className="w-4 h-4" /></Link>
+          <button 
+            onClick={handleLogout} 
+            title="Đăng xuất"
+            className="text-white/80 hover:text-white flex items-center gap-1 text-sm bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 transition-all"
+          >
+            <LogOut className="w-4 h-4" /> Đăng xuất
+          </button>
         </div>
       </header>
 

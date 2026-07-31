@@ -3,20 +3,20 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import SiteLayout from "@/components/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
 import { api, fmt, overlaps } from "@/lib/store";
-import DateInput from "@/components/DateInput";
+
+// Components đã tái sử dụng
+import DateRangePicker from "@/components/DateRangePicker";
+import BookingAvailabilityAlert from "@/components/BookingAvailabilityAlert";
 
 // Lucide Icons
 import {
   CheckCircle2,
   Star,
   Ban,
-  CalendarCheck,
-  CalendarX,
   Users,
   Building2,
   BedDouble,
   Maximize2,
-  AlertCircle,
   MessageSquare,
   ShieldAlert,
 } from "lucide-react";
@@ -34,11 +34,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-
-// Lấy ngày hôm nay định dạng YYYY-MM-DD
-const getTodayString = () => new Date().toISOString().split("T")[0];
 
 export default function RoomDetailPage() {
   const { id } = useParams();
@@ -50,8 +45,6 @@ export default function RoomDetailPage() {
   const [bookings, setBookings] = useState([]);
   const [err, setErr] = useState("");
   const [activeImgIdx, setActiveImgIdx] = useState(0);
-
-  const today = getTodayString();
 
   const [b, setB] = useState({
     checkIn: sp.get("checkIn") || "",
@@ -65,7 +58,7 @@ export default function RoomDetailPage() {
       .getOne(id, { expand: "room_type_id,room_type" })
       .then((r) => {
         setRoom(r);
-        // 🟢 Lấy tên loại phòng từ expand room_types
+        // Lấy tên loại phòng từ expand
         const roomTypeObj = r.expand?.room_type_id || r.expand?.room_type;
         const roomTypeName = roomTypeObj?.name || r.typeName || "";
         setB((s) => ({ ...s, type: roomTypeName }));
@@ -93,13 +86,12 @@ export default function RoomDetailPage() {
   }
 
   // 1. Lấy object room_type từ relation expand
-const roomType = room.expand?.room_type_id || room.expand?.room_type;
+  const roomType = room.expand?.room_type_id || room.expand?.room_type;
+  // 2. Lấy tên loại phòng
+  const roomTypeName = roomType?.name || "Chưa phân loại";
+  // 3. Lấy giá phòng
+  const roomPrice = roomType?.price ?? 0;
 
-// 2. Lấy tên loại phòng trực tiếp từ bảng room_types (nếu không có thì để mặc định)
-const roomTypeName = roomType?.name || "Chưa phân loại";
-
-// 3. Lấy giá phòng từ loại phòng (nếu không có thì mặc định là 0)
-const roomPrice = roomType?.price ?? 0;
   // Kiểm tra phòng có bị trùng lịch trong khoảng ngày được chọn hay không
   const busy =
     b.checkIn &&
@@ -110,16 +102,6 @@ const roomPrice = roomType?.price ?? 0;
         x.status !== "cancelled" &&
         overlaps(b.checkIn, b.checkOut, x.checkIn, x.checkOut)
     );
-
-  // Cập nhật Ngày nhận + tự kiểm tra nếu Ngày trả vi phạm
-  const handleCheckInChange = (e) => {
-    const newCheckIn = e.target.value;
-    if (b.checkOut && b.checkOut <= newCheckIn) {
-      setB({ ...b, checkIn: newCheckIn, checkOut: "" });
-    } else {
-      setB({ ...b, checkIn: newCheckIn });
-    }
-  };
 
   const proceed = () => {
     setErr("");
@@ -187,7 +169,6 @@ const roomPrice = roomType?.price ?? 0;
               <span className="text-sm text-muted-foreground">/ đêm</span>
             </div>
 
-            {/* 🟢 Hiển thị tên loại phòng từ room_types */}
             <h1 className="font-display text-3xl md:text-4xl font-extrabold mt-2">
               {roomTypeName} · {room.code}
             </h1>
@@ -301,31 +282,12 @@ const roomPrice = roomType?.price ?? 0;
             </CardHeader>
 
             <CardContent className="pt-6 space-y-4">
-              {/* Ngày nhận */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex items-center gap-1.5">
-                  <CalendarCheck className="w-4 h-4 text-primary" /> Ngày nhận
-                </Label>
-                <DateInput
-                  minDate={today}
-                  value={b.checkIn}
-                  onChange={handleCheckInChange}
-                  className="bg-background"
-                />
-              </div>
-
-              {/* Ngày trả */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex items-center gap-1.5">
-                  <CalendarX className="w-4 h-4 text-primary" /> Ngày trả
-                </Label>
-                <DateInput
-                  minDate={b.checkIn || today}
-                  value={b.checkOut}
-                  onChange={(e) => setB({ ...b, checkOut: e.target.value })}
-                  className="bg-background"
-                />
-              </div>
+              {/* Component chọn ngày Checkin - Checkout */}
+              <DateRangePicker
+                checkIn={b.checkIn}
+                checkOut={b.checkOut}
+                onChange={({ checkIn, checkOut }) => setB({ ...b, checkIn, checkOut })}
+              />
 
               {/* Loại phòng (Readonly) */}
               <div className="space-y-1.5">
@@ -349,23 +311,14 @@ const roomPrice = roomType?.price ?? 0;
                 />
               </div>
 
-              {/* Thông báo lỗi */}
-              {err && (
-                <Alert variant="destructive" className="py-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">{err}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Thông báo trùng lịch */}
-              {busy && !err && (
-                <Alert variant="destructive" className="py-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    Phòng đã có người đặt trong khoảng thời gian này.
-                  </AlertDescription>
-                </Alert>
-              )}
+              {/* Component tự kiểm tra và hiển thị cảnh báo trùng lịch / lỗi */}
+              <BookingAvailabilityAlert
+                checkIn={b.checkIn}
+                checkOut={b.checkOut}
+                roomCode={room.code}
+                bookings={bookings}
+                customError={err}
+              />
             </CardContent>
 
             <CardFooter className="pt-2">

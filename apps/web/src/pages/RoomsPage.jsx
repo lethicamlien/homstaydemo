@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import SiteLayout from "@/components/SiteLayout";
 import { api, fmt, overlaps } from "@/lib/store";
 import SearchBar from "@/components/SearchBar";
-import pb from "@/lib/pocketbaseClient"; // 🟢 Bổ sung pb client để lấy room_types
+import pb from "@/lib/pocketbaseClient"; // Bổ sung pb client để lấy room_types
 
 // Lucide Icons
 import {
