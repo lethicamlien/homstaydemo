@@ -1,25 +1,38 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import pb from "@/lib/pocketbaseClient";
-
+//pb: Instance kết nối SDK PocketBase được khởi tạo sẵn từ tệp cấu hình
+//AuthCtx: Đối tượng Context dùng để chia sẻ dữ liệu giữa các component
+//mà không cần truyền props thủ công qua nhiều tầng (prop drilling).
 const AuthCtx = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(pb.authStore.record);
-
+//AuthCtx: Đối tượng Context dùng để chia sẻ dữ liệu giữa các component
+//mà không cần truyền props thủ công qua nhiều tầng (prop drilling).
 //Lắng nghe sự thay đổi trạng thái đăng nhập. Ngay khi người dùng đăng nhập
 //thành công hoặc bấm Đăng xuất, setUser(rec) sẽ tự động chạy và cập nhật lại giao diện trên toàn hệ thống.
  
+//pb.authStore.onChange(...):
+  //Đăng ký một listener lắng nghe mọi biến động của token/user (khi login, logout hoặc token hết hạn).
+  //Mỗi khi trạng thái auth thay đổi, hàm callback (_t, rec) => setUser(rec) chạy, cập nhật state user ngay lập tức.
+
 useEffect(() => {
     const unsub = pb.authStore.onChange((_t, rec) => setUser(rec));
     return unsub;
   }, []);
 
+  //return unsub;:
+  //Hàm cleanup giúp huỷ đăng ký listener khi AuthProvider bị unmount, tránh leak bộ nhớ.
+
   const value = {
     user,
     isAuthed: pb.authStore.isValid,
     role: user?.role || (user ? "customer" : null),
-    
+     //user: Chứa object thông tin user hiện tại (ID, email, name, role...).
+    //isAuthed: Trả về true/false kiểm tra xem token xác thực có tồn tại và còn hiệu lực hay không.
+    //role: Xác định quyền của user. Ưu tiên lấy user.role, nếu không có nhưng user tồn tại thì gán mặc định là "customer", ngược lại là null.
     //: Gọi API PocketBase xác thực email/mật khẩu
+   
     login: async (email, password) => {
       try {
         return await pb.collection("users").authWithPassword(email, password);
@@ -27,6 +40,10 @@ useEffect(() => {
         throw new Error("Email hoặc mật khẩu không chính xác.");
       }
     },
+    //Gọi SDK PocketBase xác thực với cặp email/password.
+    //Nếu thành công, PocketBase tự lưu token vào authStore và kích hoạt hàm onChange ở useEffect trên.
+    //Nếu thất bại, bắt lỗi và ném ra (throw) thông báo tiếng Việt thân thiện với người dùng.
+
 
     signup: async (data) => {
       try {
