@@ -1,4 +1,6 @@
-// 1. ROUTE TẠO YÊU CẦU THANH TOÁN PAYOS
+// pb_hooks/payos.pb.js
+
+// 1. ROUTE TẠO YÊU CẦU THANH TOÁN
 routerAdd("POST", "/api/create-payos-payment", (e) => {
     try {
         const body = e.requestInfo().body || {};
@@ -51,23 +53,17 @@ routerAdd("POST", "/api/create-payos-payment", (e) => {
             });
         }
 
-        console.log("PayOS trả lỗi:", JSON.stringify(resData));
         return e.json(400, { error: resData?.desc || "Không tạo được giao dịch PayOS" });
     } catch (err) {
-        console.log("Exception khi gọi PayOS:", err);
         return e.json(500, { error: err.message });
     }
 });
 
-// 2. ROUTE NHẬN WEBHOOK TỪ PAYOS KHI THANH TOÁN THÀNH CÔNG
+// 2. ROUTE WEBHOOK: CHỈ TẠO MỚI BOOKING KHI ĐÃ THANH TOÁN THÀNH CÔNG
 routerAdd("POST", "/api/payos-webhook", (e) => {
     try {
-        // Đặt trực tiếp PAYOS_CHECKSUM_KEY vào trong hàm này
         const PAYOS_CHECKSUM_KEY = $os.getenv("PAYOS_CHECKSUM_KEY") || "6e11bad79881ddd21378e69a52988389cbd59d10c3d8ce290056a718e2a0c8e9";
-        
         const body = e.requestInfo().body || {};
-
-        console.log("[PayOS webhook] Nhận request:", JSON.stringify(body));
 
         const { code, data, signature } = body;
 
@@ -75,7 +71,7 @@ routerAdd("POST", "/api/payos-webhook", (e) => {
             return e.json(400, { error: "Thiếu dữ liệu webhook" });
         }
 
-        // Tạo chuỗi signature đúng chuẩn PayOS
+        // Xác thực chữ ký
         const sortedKeys = Object.keys(data).sort();
         const signStr = sortedKeys
             .map((key) => {
@@ -92,35 +88,36 @@ routerAdd("POST", "/api/payos-webhook", (e) => {
         const expectedSignature = $security.hs256(signStr, PAYOS_CHECKSUM_KEY);
 
         if (expectedSignature !== signature) {
-            console.log("[PayOS webhook] Chữ ký KHÔNG khớp.");
-            console.log("  - signStr  :", signStr);
-            console.log("  - expected :", expectedSignature);
-            console.log("  - received :", signature);
             return e.json(400, { error: "Chữ ký không hợp lệ" });
         }
 
         if (code === "00") {
             const orderCode = Number(data.orderCode);
 
+            // Kiểm tra xem đơn đã được Webhook xử lý trước đó chưa
+            let existingRecord = null;
             try {
-                const record = $app.findFirstRecordByFilter(
-                    "bookings",
-                    `orderCode = ${orderCode}`
-                );
+                existingRecord = $app.findFirstRecordByFilter("bookings", `orderCode = ${orderCode}`);
+            } catch (err) {}
 
+            // Nếu chưa có -> TẠO MỚI BẢN GHI VÀO POCKETBASE
+            if (!existingRecord) {
+                const collection = $app.findCollectionByNameOrId("bookings");
+                const record = new Record(collection);
+
+                record.set("orderCode", orderCode);
+                record.set("total", data.amount);
+                record.set("payMethod", "transfer");
                 record.set("payStatus", "paid");
                 record.set("status", "confirmed");
-                $app.save(record);
 
-                console.log("[PayOS webhook] Đã cập nhật thanh toán cho đơn:", orderCode);
-            } catch (findErr) {
-                console.log("[PayOS webhook] Không tìm thấy booking với orderCode:", orderCode);
+                $app.save(record);
+                console.log("[PayOS Webhook] Đã tạo mới thành công booking cho đơn:", orderCode);
             }
         }
 
         return e.json(200, { success: true });
     } catch (err) {
-        console.log("[PayOS webhook] Lỗi xử lý webhook:", err);
         return e.json(500, { error: err.message });
     }
 });

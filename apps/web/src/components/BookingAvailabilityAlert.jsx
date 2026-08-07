@@ -10,17 +10,26 @@ export default function BookingAvailabilityAlert({
   bookings = [],
   customError = "",
 }) {
-  // Logic kiểm tra trùng lịch đặt phòng
+  // Logic kiểm tra trùng lịch đặt phòng (Hỗ trợ cả ID relation & String code)
   const isBusy =
     checkIn &&
     checkOut &&
     roomCode &&
-    bookings.some(
-      (b) =>
-        b.roomCode === roomCode &&
-        b.status !== "cancelled" &&
-        overlaps(checkIn, checkOut, b.checkIn, b.checkOut)
-    );
+    bookings.some((b) => {
+      // Bỏ qua đơn đã hủy
+      if (b.status === "cancelled") return false;
+
+      // Kiểm tra khớp phòng (ID hoặc Code)
+      const bRoomId = b.roomCode;
+      const bRoomCode = b.expand?.roomCode?.code;
+
+      const isSameRoom =
+        bRoomId === roomCode ||
+        bRoomCode === roomCode ||
+        b.expand?.roomCode?.id === roomCode;
+
+      return isSameRoom && overlaps(checkIn, checkOut, b.checkIn, b.checkOut);
+    });
 
   // Hiển thị lỗi custom (nếu có)
   if (customError) {

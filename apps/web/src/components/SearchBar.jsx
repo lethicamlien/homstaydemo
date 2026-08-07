@@ -27,7 +27,7 @@ export default function SearchBar({
   const [f, setF] = useState({
     checkIn: initialValues.checkIn || "",
     checkOut: initialValues.checkOut || "",
-    guests: initialValues.guests || 2,
+    capacity: initialValues.capacity || initialValues.guests || 2,
     type: initialValues.type || "",
   });
 
@@ -45,7 +45,6 @@ export default function SearchBar({
   };
 
   return (
-    /* max-w-4xl giúp thanh gọn lại, rounded-2xl bo tròn góc theo mẫu */
     <Card className="max-w-4xl mx-auto shadow-2xl border-none bg-white rounded-2xl overflow-hidden">
       <CardContent className="p-3 sm:p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
@@ -74,16 +73,16 @@ export default function SearchBar({
             />
           </div>
 
-          {/* 3. Số khách */}
+          {/* 3. Sức chứa (Thay thế cho Số khách) */}
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-gray-600 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-sky-500" /> Số khách
+              <Users className="w-3.5 h-3.5 text-sky-500" /> Sức chứa
             </Label>
             <Input
               type="number"
               min={1}
-              value={f.guests}
-              onChange={(e) => setF({ ...f, guests: e.target.value })}
+              value={f.capacity}
+              onChange={(e) => setF({ ...f, capacity: e.target.value })}
               className="bg-gray-100/80 border-none rounded-xl text-xs h-9"
             />
           </div>
@@ -111,7 +110,7 @@ export default function SearchBar({
             </Select>
           </div>
 
-          {/* 5. Nút Tìm kiếm màu xanh cyan/sky chuẩn thiết kế mẫu */}
+          {/* 5. Nút Tìm kiếm */}
           <Button
             onClick={handleSearch}
             className="w-full font-semibold gap-1.5 bg-[#0e95c4] hover:bg-[#0b7ea6] text-white rounded-xl h-9 text-xs shadow-sm transition-all"

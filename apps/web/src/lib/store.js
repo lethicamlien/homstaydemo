@@ -29,7 +29,10 @@ export const api = {
   rooms: () => pb.collection("rooms").getFullList({ expand: "room_type_id" }),
   roomTypes: () => pb.collection("room_types").getFullList({ sort: "price" }),
   services: () => pb.collection("services").getFullList({ sort: "created" }),
-  bookings: () => pb.collection("bookings").getFullList({ sort: "-created" }),
+  bookings: () => pb.collection("bookings").getFullList({
+    sort: "-created",
+    expand: "roomCode,room_type_id",
+  }),
   reviews: (roomCode) =>
     pb.collection("reviews").getFullList({
       sort: "-created",

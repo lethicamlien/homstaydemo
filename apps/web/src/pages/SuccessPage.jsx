@@ -34,7 +34,7 @@ export default function SuccessPage() {
 
   useEffect(() => {
     pb.collection("bookings")
-      .getOne(id)
+      .getOne(id, { expand: "roomCode,roomTypeName" })
       .then(setB)
       .catch(() => {});
   }, [id]);
@@ -63,6 +63,10 @@ export default function SuccessPage() {
     b.payMethod === "transfer"
       ? "Chuyển khoản giữ phòng"
       : "Thanh toán khi nhận phòng";
+
+  // Trích xuất thông tin Tên phòng và Loại phòng từ Relation Expand hoặc Field gốc
+  const displayRoomCode = b.expand?.roomCode?.code || b.roomCode;
+  const displayRoomType = b.expand?.roomTypeName?.name || b.roomTypeName;
 
   return (
     <div className="min-h-screen bg-muted/30 pb-12">
@@ -130,8 +134,8 @@ export default function SuccessPage() {
                   <Calendar className="w-4 h-4" /> Chi tiết lưu trú
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <P label="Tên phòng" value={b.roomCode} />
-                  <P label="Loại phòng" value={b.roomTypeName} />
+                  <P label="Tên phòng" value={displayRoomCode} />
+                  <P label="Loại phòng" value={displayRoomType} />
                   <P label="Ngày nhận" value={fmtDate(b.checkIn)} />
                   <P label="Ngày trả" value={fmtDate(b.checkOut)} />
                   <P label="Số lượng khách" value={`${b.guests} người`} />

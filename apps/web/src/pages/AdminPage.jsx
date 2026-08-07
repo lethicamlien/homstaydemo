@@ -42,7 +42,17 @@ export default function AdminPage() {
     api.reviews().then(setReviews);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+
+    const unsubscribe = pb.collection("bookings").subscribe("*", () => {
+      load();
+    });
+
+    return () => {
+      pb.collection("bookings").unsubscribe("*");
+    };
+  }, []);
 
   const occupied = bookings.filter((b) => b.status === "checkedin").length;
   const revenue = bookings

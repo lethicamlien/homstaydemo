@@ -23,17 +23,6 @@ import BookingAvailabilityAlert from "@/components/BookingAvailabilityAlert";
 
 /**
  * MODAL ĐẶT PHÒNG CHO KHÁCH TRỰC TIẾP (WALK-IN)
- *
- * Props:
- * - open, onOpenChange: điều khiển đóng/mở dialog
- * - rooms, bookings: dữ liệu dùng để hiển thị & cảnh báo trùng lịch
- * - formData, setFormData: state của form (quản lý ở component cha)
- * - isRoomLocked: có khóa ô chọn phòng hay không (khi tạo từ 1 phòng cụ thể)
- * - formErr: lỗi validate hiển thị trong BookingAvailabilityAlert
- * - saving: trạng thái đang lưu
- * - onSubmit(e): submit form tạo booking
- * - onDateChange({checkIn, checkOut}): thay đổi khoảng ngày
- * - currentRoomPrice, calcNights, calcTotal: giá trị tính toán tạm tính
  */
 export default function WalkInBookingModal({
   open,
@@ -103,11 +92,21 @@ export default function WalkInBookingModal({
                   </SelectTrigger>
                   <SelectContent>
                     {rooms.map((r) => {
-                      const p = r.expand?.room_type_id?.price ?? r.price ?? 0;
+                      const roomType =
+                        r.expand?.room_type_id ||
+                        r.expand?.room_type ||
+                        r.expand?.roomType;
+                      const p = roomType?.price ?? r.price ?? 0;
+                      const typeName =
+                        roomType?.name ?? r.typeName ?? "Phòng";
+
                       return (
-                        <SelectItem key={r.id} value={r.code} className="text-xs">
-                          Phòng {r.code} ({r.expand?.room_type_id?.name ?? r.typeName}) -{" "}
-                          {fmt(p)}đ
+                        <SelectItem
+                          key={r.id}
+                          value={r.id}
+                          className="text-xs"
+                        >
+                          Phòng {r.code} ({typeName}) - {fmt(p)}đ
                         </SelectItem>
                       );
                     })}

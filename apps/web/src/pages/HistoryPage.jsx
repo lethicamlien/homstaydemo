@@ -54,11 +54,12 @@ export default function HistoryPage() {
   useEffect(() => {
     if (user?.id) {
       setLoading(true);
-      // Gọi PocketBase API với tham số sort: "-created"
+      // Gọi PocketBase API với expand để lấy tên phòng và loại phòng chính xác từ relation
       pb.collection("bookings")
         .getFullList({
           filter: pb.filter("customer = {:id}", { id: user.id }),
-          sort: "-created", // 🟢 Đã thêm lại sort theo created giảm dần
+          expand: "roomCode,roomTypeName",
+          sort: "-created",
         })
         .then((res) => {
           setList(res);
@@ -77,8 +78,11 @@ export default function HistoryPage() {
     if (!r?.comment?.trim()) return;
 
     try {
+      // Ưu tiên truyền Record ID của phòng nếu có relation, fallback về chuỗi b.roomCode
+      const roomTarget = b.expand?.roomCode?.id || b.roomCode;
+
       await pb.collection("reviews").create({
-        roomCode: b.roomCode,
+        roomCode: roomTarget,
         author: b.guestName || user?.fullName || "Khách hàng",
         rating: r.rating || 5,
         comment: r.comment.trim(),
@@ -130,6 +134,10 @@ export default function HistoryPage() {
             const statusInfo = STATUS_CONFIG[b.status] || { label: b.status, className: "" };
             const currentRv = rv[b.id] || { rating: 5, comment: "", done: false };
 
+            // Trích xuất linh hoạt Tên phòng và Loại phòng (Hỗ trợ cả Relation Expand lẫn Direct Field)
+            const displayRoomCode = b.expand?.roomCode?.code || b.roomCode || "";
+            const displayRoomType = b.expand?.roomTypeName?.name || b.roomTypeName || "";
+
             return (
               <Card key={b.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="bg-muted/30 pb-4">
@@ -146,7 +154,7 @@ export default function HistoryPage() {
                       </div>
                       <CardTitle className="text-xl mt-2 flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-primary" />
-                        {b.roomTypeName} · Phòng {b.roomCode}
+                        {displayRoomType} {displayRoomCode && `· Phòng ${displayRoomCode}`}
                       </CardTitle>
                     </div>
 
@@ -173,8 +181,8 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
-                  {/* KHU VỰC ĐÁNH GIÁ (Chỉ hiện khi đã thanh toán/hoàn tất) */}
-                  {b.payStatus === "paid" && !currentRv.done && (
+                  {/* KHU VỰC ĐÁNH GIÁ (Cho phép đánh giá khi đã trả phòng hoặc đã thanh toán) */}
+                  {(b.payStatus === "paid" || b.status === "checkedout") && !currentRv.done && (
                     <div className="pt-2">
                       <Separator className="mb-4" />
                       <div className="space-y-3 bg-muted/20 p-4 rounded-xl border">

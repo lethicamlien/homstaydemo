@@ -4,13 +4,13 @@ import SiteLayout from "@/components/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
 import { api, fmtVND, nights, genCode, fmtDate } from "@/lib/store";
 import { useAuth } from "@/lib/AuthContext";
-import TransferPaymentModal from "@/components/TransferPaymentModal"; // Import Component QR
+import TransferPaymentModal from "@/components/TransferPaymentModal";
 
 import { 
   Minus, Plus, CreditCard, Wallet, Users, Bed, ConciergeBell, AlertCircle 
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,8 +45,12 @@ export default function BookingPage() {
 
   if (!st?.room) return <Navigate to="/rooms" replace />;
 
+  // 1. TRÍCH XUẤT DỮ LIỆU PHÒNG & LOẠI PHÒNG
   const roomPrice = st.room.expand?.room_type_id?.price ?? st.room.price ?? 0;
   const roomTypeName = st.room.expand?.room_type_id?.name ?? st.room.typeName ?? "";
+  
+  // Lấy Record ID của loại phòng (chuỗi ID 15 ký tự trong PocketBase)
+  const roomTypeId = st.room.expand?.room_type_id?.id ?? st.room.room_type_id ?? st.room.room_type;
 
   const n = nights(st.checkIn, st.checkOut);
   const roomTotal = roomPrice * n;
@@ -66,15 +70,18 @@ export default function BookingPage() {
 
   const bump = (id, d) => setQty((q) => ({ ...q, [id]: Math.max(0, (q[id] || 0) + d) }));
 
-  // Kiểm tra thông tin đã nhập đầy đủ chưa
+  // Kiểm tra thông tin bắt buộc đã nhập đủ chưa
   const isFormValid = info.guestName && info.guestPhone && info.guestEmail && info.guestAddress;
 
-  // Gom dữ liệu tạo booking
+  // 2. TẠO PAYLOAD CHÍNH XÁC VỚI FIELD TRONG POCKETBASE
   const getBookingPayload = () => ({
     code: genCode(),
     customer: user?.id || null,
-    roomCode: st.room.code,
-    roomTypeName: roomTypeName,
+    
+    // Gửi Record ID cho các trường Relation trong DB
+    roomCode: st.room.id,         // Relation trỏ tới collection rooms
+    roomTypeName: roomTypeId,     // Relation trỏ tới collection room_types
+
     guestName: info.guestName,
     guestPhone: info.guestPhone,
     guestEmail: info.guestEmail,
@@ -90,7 +97,6 @@ export default function BookingPage() {
     total,
   });
 
-  // Nút Submit chỉ xử lý khi chọn 'cash' (Tiền mặt)
   const submitCash = async () => {
     setErr("");
     if (!isFormValid) {
@@ -107,7 +113,7 @@ export default function BookingPage() {
 
       nav("/success/" + rec.id, { replace: true });
     } catch (e) {
-      setErr("Đặt phòng thất bại. Vui lòng thử lại.");
+      setErr("Đặt phòng thất bại. Vui lòng kiểm tra lại kết nối.");
     } finally {
       setSaving(false);
     }
@@ -121,7 +127,7 @@ export default function BookingPage() {
         </h1>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* CỘT TRÁI */}
+          {/* CỘT TRÁI: DỊCH VỤ & THÔNG TIN */}
           <div className="lg:col-span-2 space-y-6">
             {/* CARD 1: DỊCH VỤ */}
             <Card>
@@ -149,9 +155,13 @@ export default function BookingPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => bump(s.id, -1)}><Minus className="w-3.5 h-3.5" /></Button>
+                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => bump(s.id, -1)}>
+                          <Minus className="w-3.5 h-3.5" />
+                        </Button>
                         <span className="w-8 text-center font-semibold text-sm">{qty[s.id] || 0}</span>
-                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => bump(s.id, 1)}><Plus className="w-3.5 h-3.5" /></Button>
+                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => bump(s.id, 1)}>
+                          <Plus className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                     </div>
                   );
@@ -159,7 +169,7 @@ export default function BookingPage() {
               </CardContent>
             </Card>
 
-            {/* CARD 2: THÔNG TIN KHÁCH */}
+            {/* CARD 2: THÔNG TIN KHÁCH HÀNG */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl flex items-center gap-2 text-primary">
@@ -216,7 +226,6 @@ export default function BookingPage() {
                   </div>
                 </RadioGroup>
 
-                {/* KHU VỰC HIỂN THỊ MÃ QR KHI CHỌN CHUYỂN KHOẢN */}
                 {pay === "transfer" && (
                   isFormValid ? (
                     <TransferPaymentModal 
@@ -236,12 +245,14 @@ export default function BookingPage() {
             </Card>
           </div>
 
-          {/* CỘT PHẢI */}
+          {/* CỘT PHẢI: CHI TIẾT TÓM TẮT */}
           <div className="lg:col-span-1">
             <Card className="sticky top-20 shadow-md">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl">Chi tiết đặt phòng</CardTitle>
-                <Badge variant="secondary" className="w-fit mx-auto mt-1"><Bed className="w-3.5 h-3.5 mr-1" /> Phòng {st.room.code}</Badge>
+                <Badge variant="secondary" className="w-fit mx-auto mt-1">
+                  <Bed className="w-3.5 h-3.5 mr-1" /> Phòng {st.room.code}
+                </Badge>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <Row l="Loại phòng" v={roomTypeName} />
@@ -278,7 +289,6 @@ export default function BookingPage() {
               </CardContent>
 
               <CardFooter className="pt-2">
-                {/* NÚT XÁC NHẬN: VÔ HIỆU HÓA KHI CHỌN CHUYỂN KHOẢN */}
                 <Button
                   onClick={submitCash}
                   disabled={pay === "transfer" || saving}
