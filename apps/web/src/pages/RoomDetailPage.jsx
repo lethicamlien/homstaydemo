@@ -58,7 +58,6 @@ export default function RoomDetailPage() {
       .getOne(id, { expand: "room_type_id,room_type" })
       .then((r) => {
         setRoom(r);
-        // Lấy tên loại phòng từ expand
         const roomTypeObj = r.expand?.room_type_id || r.expand?.room_type;
         const roomTypeName = roomTypeObj?.name || r.typeName || "";
         setB((s) => ({ ...s, type: roomTypeName }));
@@ -85,14 +84,10 @@ export default function RoomDetailPage() {
     );
   }
 
-  // 1. Lấy object room_type từ relation expand
   const roomType = room.expand?.room_type_id || room.expand?.room_type;
-  // 2. Lấy tên loại phòng
   const roomTypeName = roomType?.name || "Chưa phân loại";
-  // 3. Lấy giá phòng
   const roomPrice = roomType?.price ?? 0;
 
-  // Kiểm tra phòng có bị trùng lịch trong khoảng ngày được chọn hay không
   const busy =
     b.checkIn &&
     b.checkOut &&
@@ -117,27 +112,44 @@ export default function RoomDetailPage() {
     nav("/booking", { state: { room, ...b } });
   };
 
-  const images = room.images || [];
+  // 🟢 Hàm lấy URL chuẩn của từng file ảnh từ PocketBase
+  const getImageUrl = (filename) => {
+    if (!filename) return "";
+    return pb.files.getUrl(room, filename);
+  };
+
+  // Chuyển mảng tên file thành mảng URL hoàn chỉnh
+  const rawImages = Array.isArray(room.images)
+    ? room.images
+    : room.images
+    ? [room.images]
+    : [];
+  const imageUrls = rawImages.map((img) => getImageUrl(img)).filter(Boolean);
 
   return (
     <SiteLayout>
       {/* KHU VỰC BÌA & GALLERY ẢNH */}
       <div className="bg-muted/40 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-          <div className="relative h-[360px] md:h-[450px] rounded-2xl overflow-hidden shadow-sm">
-            <div
-              className="w-full h-full bg-cover bg-center transition-all duration-500"
-              style={{ backgroundImage: `url(${images[activeImgIdx] || images[0]})` }}
-            />
+          <div className="relative h-[360px] md:h-[450px] rounded-2xl overflow-hidden shadow-sm bg-muted flex items-center justify-center">
+            {imageUrls.length > 0 ? (
+              <img
+                src={imageUrls[activeImgIdx] || imageUrls[0]}
+                alt={roomTypeName}
+                className="w-full h-full object-cover transition-all duration-500"
+              />
+            ) : (
+              <span className="text-muted-foreground text-sm">Chưa có ảnh hiển thị</span>
+            )}
             <Badge className="absolute top-4 left-4 font-mono text-sm shadow-md" variant="secondary">
               #{room.code}
             </Badge>
           </div>
 
           {/* Danh sách ảnh thu nhỏ */}
-          {images.length > 1 && (
+          {imageUrls.length > 1 && (
             <div className="flex items-center gap-3 overflow-x-auto pb-2">
-              {images.map((img, idx) => (
+              {imageUrls.map((url, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImgIdx(idx)}
@@ -148,8 +160,8 @@ export default function RoomDetailPage() {
                   }`}
                 >
                   <img
-                    src={img}
-                    alt={`${roomTypeName} ${idx}`}
+                    src={url}
+                    alt={`${roomTypeName} ${idx + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </button>
@@ -175,7 +187,7 @@ export default function RoomDetailPage() {
 
             <div className="flex flex-wrap items-center gap-4 mt-3 text-muted-foreground text-sm">
               <span className="flex items-center gap-1.5 bg-muted/60 px-3 py-1.5 rounded-lg border">
-                <BedDouble className="w-4 h-4 text-primary" /> {room.beds}
+                <BedDouble className="w-4 h-4 text-primary" /> {room.beds || "1 giường lớn"}
               </span>
               <span className="flex items-center gap-1.5 bg-muted/60 px-3 py-1.5 rounded-lg border">
                 <Building2 className="w-4 h-4 text-primary" /> Phòng tắm riêng
@@ -201,7 +213,7 @@ export default function RoomDetailPage() {
               {(room.amenities || []).map((a) => (
                 <div
                   key={a}
-                  className="flex items-center gap-2.5 p-3 rounded-xl border bg-card text-sm font-medium shadow-2xl shadow-black/5"
+                  className="flex items-center gap-2.5 p-3 rounded-xl border bg-card text-sm font-medium shadow-sm"
                 >
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>{a}</span>
@@ -260,7 +272,7 @@ export default function RoomDetailPage() {
 
                     {rv.reply && (
                       <div className="mt-3 pl-3 border-l-2 border-primary bg-primary/5 p-2 rounded-r-lg text-xs md:text-sm">
-                        <span className="font-semibold text-primary">Núi Homestay:</span>{" "}
+                        <span className="font-semibold text-primary">Homestay:</span>{" "}
                         <span className="text-muted-foreground">{rv.reply}</span>
                       </div>
                     )}
@@ -282,14 +294,12 @@ export default function RoomDetailPage() {
             </CardHeader>
 
             <CardContent className="pt-6 space-y-4">
-              {/* Component chọn ngày Checkin - Checkout */}
               <DateRangePicker
                 checkIn={b.checkIn}
                 checkOut={b.checkOut}
                 onChange={({ checkIn, checkOut }) => setB({ ...b, checkIn, checkOut })}
               />
 
-              {/* Loại phòng (Readonly) */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-primary" /> Loại phòng
@@ -297,7 +307,6 @@ export default function RoomDetailPage() {
                 <Input value={b.type} readOnly className="bg-muted/50 font-medium" />
               </div>
 
-              {/* Số người */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-primary" /> Số lượng khách
@@ -311,7 +320,6 @@ export default function RoomDetailPage() {
                 />
               </div>
 
-              {/* Component tự kiểm tra và hiển thị cảnh báo trùng lịch / lỗi */}
               <BookingAvailabilityAlert
                 checkIn={b.checkIn}
                 checkOut={b.checkOut}
