@@ -1,6 +1,7 @@
 import React from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
+import Chatbot from './components/Chatbot'; // 1. Import Chatbot vào đây
 import { CustomerOnlyRoute, RequireRole } from './components/ProtectedRoutes';
 import { AuthProvider } from '@/lib/AuthContext';
 import HomePage from './pages/HomePage';
@@ -18,6 +19,7 @@ function App() {
     <AuthProvider>
       <Router>
         <ScrollToTop />
+        <Chatbot /> {/* 2. Chèn Chatbot tại đây để xuất hiện ở mọi trang */}
         <Routes>
           <Route path="/" element={<CustomerOnlyRoute><HomePage /></CustomerOnlyRoute>} />
           <Route path="/rooms" element={<CustomerOnlyRoute><RoomsPage /></CustomerOnlyRoute>} />
