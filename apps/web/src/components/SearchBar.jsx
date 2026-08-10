@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import DateInput from "@/components/DateInput";
+import DateRangePicker from "@/components/DateRangePicker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  CalendarCheck,
-  CalendarX,
-  Users,
-  Home,
-  Search,
-} from "lucide-react";
+import { Users, Home, Search } from "lucide-react";
 
 export default function SearchBar({
   initialValues = {},
@@ -31,13 +25,13 @@ export default function SearchBar({
     type: initialValues.type || "",
   });
 
-  const handleCheckInChange = (e) => {
-    const newCheckIn = e.target.value;
-    if (f.checkOut && f.checkOut <= newCheckIn) {
-      setF({ ...f, checkIn: newCheckIn, checkOut: "" });
-    } else {
-      setF({ ...f, checkIn: newCheckIn });
-    }
+  // Nhận giá trị ngày nhận & ngày trả từ DateRangePicker
+  const handleDateChange = ({ checkIn, checkOut }) => {
+    setF((prev) => ({
+      ...prev,
+      checkIn,
+      checkOut,
+    }));
   };
 
   const handleSearch = () => {
@@ -47,34 +41,18 @@ export default function SearchBar({
   return (
     <Card className="max-w-4xl mx-auto shadow-2xl border-none bg-white rounded-2xl overflow-hidden">
       <CardContent className="p-3 sm:p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
-          {/* 1. Ngày nhận */}
-          <div className="space-y-1">
-            <Label className="text-[11px] font-medium text-gray-600 flex items-center gap-1">
-              <CalendarCheck className="w-3.5 h-3.5 text-sky-500" /> Ngày nhận
-            </Label>
-            <DateInput
-              value={f.checkIn}
-              onChange={handleCheckInChange}
-              className="bg-gray-100/80 border-none rounded-xl text-xs h-9"
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+          {/* 1 & 2. Bộ chọn Ngày nhận / Ngày trả */}
+          <div className="md:col-span-5">
+            <DateRangePicker
+              checkIn={f.checkIn}
+              checkOut={f.checkOut}
+              onChange={handleDateChange}
             />
           </div>
 
-          {/* 2. Ngày trả */}
-          <div className="space-y-1">
-            <Label className="text-[11px] font-medium text-gray-600 flex items-center gap-1">
-              <CalendarX className="w-3.5 h-3.5 text-sky-500" /> Ngày trả
-            </Label>
-            <DateInput
-              minDate={f.checkIn}
-              value={f.checkOut}
-              onChange={(e) => setF({ ...f, checkOut: e.target.value })}
-              className="bg-gray-100/80 border-none rounded-xl text-xs h-9"
-            />
-          </div>
-
-          {/* 3. Sức chứa (Thay thế cho Số khách) */}
-          <div className="space-y-1">
+          {/* 3. Sức chứa */}
+          <div className="space-y-1 md:col-span-2">
             <Label className="text-[11px] font-medium text-gray-600 flex items-center gap-1">
               <Users className="w-3.5 h-3.5 text-sky-500" /> Sức chứa
             </Label>
@@ -88,13 +66,15 @@ export default function SearchBar({
           </div>
 
           {/* 4. Loại phòng */}
-          <div className="space-y-1">
+          <div className="space-y-1 md:col-span-3">
             <Label className="text-[11px] font-medium text-gray-600 flex items-center gap-1">
               <Home className="w-3.5 h-3.5 text-sky-500" /> Loại phòng
             </Label>
             <Select
               value={f.type || "all"}
-              onValueChange={(val) => setF({ ...f, type: val === "all" ? "" : val })}
+              onValueChange={(val) =>
+                setF({ ...f, type: val === "all" ? "" : val })
+              }
             >
               <SelectTrigger className="bg-gray-100/80 border-none rounded-xl text-xs h-9">
                 <SelectValue placeholder="Tất cả" />
@@ -111,12 +91,14 @@ export default function SearchBar({
           </div>
 
           {/* 5. Nút Tìm kiếm */}
-          <Button
-            onClick={handleSearch}
-            className="w-full font-semibold gap-1.5 bg-[#0e95c4] hover:bg-[#0b7ea6] text-white rounded-xl h-9 text-xs shadow-sm transition-all"
-          >
-            <Search className="w-3.5 h-3.5" /> Tìm kiếm
-          </Button>
+          <div className="md:col-span-2">
+            <Button
+              onClick={handleSearch}
+              className="w-full font-semibold gap-1.5 bg-[#0e95c4] hover:bg-[#0b7ea6] text-white rounded-xl h-9 text-xs shadow-sm transition-all"
+            >
+              <Search className="w-3.5 h-3.5" /> Tìm kiếm
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

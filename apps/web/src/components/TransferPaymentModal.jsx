@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
-import { fmtVND } from "@/lib/store";
+import { fmtVND, updateServiceQuantities } from "@/lib/store";
 import { Loader2, ExternalLink, Copy, Check, QrCode } from "lucide-react";
 import QrImage from "@/components/QrImage";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,12 @@ export default function TransferPaymentModal({ bookingData, onError }) {
         // Tạo orderCode ngẫu nhiên dạng số nguyên cho PayOS
         const numericOrderCode = Number(String(Date.now()).slice(-6));
 
-        // 1. Tạo bản ghi Booking trong PocketBase
+        // 1. Cập nhật tồn kho dịch vụ trước khi tạo booking
+        if (Array.isArray(bookingData?.serviceItems) && bookingData.serviceItems.length) {
+          await updateServiceQuantities(bookingData.serviceItems);
+        }
+
+        // 2. Tạo bản ghi Booking trong PocketBase
         const rec = await pb.collection("bookings").create({
           ...bookingData,
           payMethod: "transfer",

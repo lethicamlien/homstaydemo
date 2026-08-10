@@ -1,7 +1,7 @@
 import React from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
-import Chatbot from './components/Chatbot'; // 1. Import Chatbot vào đây
+import Chatbot from './components/Chatbot';
 import { CustomerOnlyRoute, RequireRole } from './components/ProtectedRoutes';
 import { AuthProvider } from '@/lib/AuthContext';
 import HomePage from './pages/HomePage';
@@ -19,19 +19,26 @@ function App() {
     <AuthProvider>
       <Router>
         <ScrollToTop />
-        <Chatbot /> {/* 2. Chèn Chatbot tại đây để xuất hiện ở mọi trang */}
+        <Chatbot />
         <Routes>
-          <Route path="/" element={<CustomerOnlyRoute><HomePage /></CustomerOnlyRoute>} />
-          <Route path="/rooms" element={<CustomerOnlyRoute><RoomsPage /></CustomerOnlyRoute>} />
-          <Route path="/rooms/:id" element={<CustomerOnlyRoute><RoomDetailPage /></CustomerOnlyRoute>} />
-          <Route path="/booking" element={<CustomerOnlyRoute><BookingPage /></CustomerOnlyRoute>} />
-          <Route path="/success/:id" element={<CustomerOnlyRoute><SuccessPage /></CustomerOnlyRoute>} />
-          <Route path="/lich-su" element={<CustomerOnlyRoute><HistoryPage /></CustomerOnlyRoute>} />
-          <Route path="/auth" element={<CustomerOnlyRoute><AuthPage /></CustomerOnlyRoute>} />
+          {/* 1. Trang Auth dành cho tất cả mọi người */}
+          <Route path="/auth" element={<AuthPage />} />
+
+          {/* 2. Nhóm các trang dành riêng cho Khách hàng */}
+          <Route element={<CustomerOnlyRoute />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/rooms" element={<RoomsPage />} />
+            <Route path="/rooms/:id" element={<RoomDetailPage />} />
+            <Route path="/booking" element={<BookingPage />} />
+            <Route path="/success/:id" element={<SuccessPage />} />
+            <Route path="/lich-su" element={<HistoryPage />} />
+            <Route path="/gioi-thieu" element={<HomePage />} />
+            <Route path="/lien-he" element={<HomePage />} />
+          </Route>
+
+          {/* 3. Nhóm các trang dành cho Nội bộ */}
           <Route path="/admin" element={<RequireRole allowedRoles={['admin']}><AdminPage /></RequireRole>} />
           <Route path="/reception" element={<RequireRole allowedRoles={['receptionist']}><ReceptionPage /></RequireRole>} />
-          <Route path="/gioi-thieu" element={<CustomerOnlyRoute><HomePage /></CustomerOnlyRoute>} />
-          <Route path="/lien-he" element={<CustomerOnlyRoute><HomePage /></CustomerOnlyRoute>} />
         </Routes>
       </Router>
     </AuthProvider>

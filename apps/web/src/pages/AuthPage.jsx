@@ -56,9 +56,7 @@ export default function AuthPage() {
   };
 //Hàm Xử lý Gửi Form (submit) & Điều hướng (go)
   const submit = async (e) => {
-    //e.preventDefault(): Chống load lại trang mặc định của thẻ <form>.
     e.preventDefault();
-
     setErr("");
     setMsg("");
 
@@ -69,8 +67,9 @@ export default function AuthPage() {
         const a = await login(f.email, f.password);
         go(a.record);
       } else if (tab === "signup") {
-        const a = await signup(f);
-        go(a.record);
+        await signup(f);
+        setMsg("Đăng ký thành công! Vui lòng kiểm tra Hộp thư Email để kích hoạt tài khoản trước khi đăng nhập.");
+        setTab("login");
       } else {
         await forgot(f.email);
         setMsg("Đã gửi email khôi phục mật khẩu (nếu email tồn tại).");
@@ -81,7 +80,6 @@ export default function AuthPage() {
   };
 
   const go = (u) => nav(u?.role === "admin" ? "/admin" : u?.role === "receptionist" ? "/reception" : "/");
-
   return (
     <SiteLayout>
       <div className="max-w-md mx-auto px-4 py-16">

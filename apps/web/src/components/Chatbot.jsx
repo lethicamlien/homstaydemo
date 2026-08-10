@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 
 // ==== CẤU HÌNH ====
 const BOT_ID = '7670933824876085253';
-const COZE_TOKEN = 'pat_ymPCXHtjs57UiGQW3sVhI07jkLtUfoaCQUDXehBtVP6OgFhtAhOjXmhW9qgXKnGA'; // token mới bạn vừa tạo
+const COZE_TOKEN = 'pat_ymPCXHtjs57UiGQW3sVhI07jkLtUfoaCQUDXehBtVP6OgFhtAhOjXmhW9qgXKnGA';
 const API_BASE = 'https://api.coze.com';
 // ===================
 
@@ -15,7 +17,6 @@ function genUserId() {
 }
 
 async function callCoze(userMessage, conversationId, userId) {
-  // 1. Gửi tin nhắn, tạo chat
   const createRes = await fetch(`${API_BASE}/v3/chat`, {
     method: 'POST',
     headers: {
@@ -42,7 +43,6 @@ async function callCoze(userMessage, conversationId, userId) {
   const newConversationId = chat.conversation_id;
   const chatId = chat.id;
 
-  // 2. Poll trạng thái cho tới khi bot trả lời xong
   let status = chat.status;
   let tries = 0;
   while (status !== 'completed' && tries < 30) {
@@ -59,7 +59,6 @@ async function callCoze(userMessage, conversationId, userId) {
     tries++;
   }
 
-  // 3. Lấy danh sách tin nhắn trả lời
   const msgRes = await fetch(
     `${API_BASE}/v3/chat/message/list?chat_id=${chatId}&conversation_id=${newConversationId}`,
     { headers: { Authorization: `Bearer ${COZE_TOKEN}` } }
@@ -74,6 +73,7 @@ async function callCoze(userMessage, conversationId, userId) {
 }
 
 export default function Chatbot() {
+  const navigate = useNavigate(); // 2. Kích hoạt hook chuyển trang
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'bot', text: 'Xin chào! Mình là trợ lý Núi Homestay, bạn cần hỏi gì về phòng nhỉ?' },
@@ -155,18 +155,70 @@ export default function Chatbot() {
               >
                 <div
                   style={{
-                    maxWidth: '80%',
+                    maxWidth: '85%',
                     padding: '8px 12px',
                     borderRadius: 12,
                     fontSize: 14,
                     lineHeight: 1.4,
-                    whiteSpace: 'pre-wrap',
                     background: m.role === 'user' ? '#0f766e' : '#fff',
                     color: m.role === 'user' ? '#fff' : '#1f2937',
                     border: m.role === 'user' ? 'none' : '1px solid #e5e7eb',
                   }}
                 >
-                  {m.text}
+                  {m.role === 'user' ? (
+                    m.text
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ node, ...props }) => <p style={{ margin: 0, marginBottom: 4 }} {...props} />,
+                        ul: ({ node, ...props }) => <ul style={{ paddingLeft: 16, margin: '4px 0' }} {...props} />,
+                        ol: ({ node, ...props }) => <ol style={{ paddingLeft: 16, margin: '4px 0' }} {...props} />,
+                        
+                        // 3. Custom thẻ <a> để chuyển trang trong React Router
+                        a: ({ node, href, children, ...props }) => {
+                          const handleClick = (e) => {
+                            if (href && href.startsWith('/')) {
+                              e.preventDefault();
+                              navigate(href); // Điều hướng mượt sang RoomDetailPage
+                            }
+                          };
+                          return (
+                            <a
+                              href={href}
+                              onClick={handleClick}
+                              style={{ color: '#0f766e', fontWeight: 600, textDecoration: 'underline' }}
+                              {...props}
+                            >
+                              {children}
+                            </a>
+                          );
+                        },
+
+                        // 4. Custom thẻ <img> hiển thị hình ảnh phòng đẹp mắt
+                        img: ({ node, ...props }) => (
+                          <img
+                            {...props}
+                            style={{
+                              width: '100%',
+                              height: 140,
+                              objectFit: 'cover',
+                              borderRadius: 8,
+                              marginTop: 6,
+                              marginBottom: 6,
+                              display: 'block',
+                              cursor: 'pointer',
+                            }}
+                            onError={(e) => {
+                              // Tự động ẩn nếu link ảnh lỗi
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ),
+                      }}
+                    >
+                      {m.text}
+                    </ReactMarkdown>
+                  )}
                 </div>
               </div>
             ))}

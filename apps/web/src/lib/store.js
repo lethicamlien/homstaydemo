@@ -16,6 +16,27 @@ export function fmtDate(s) {
   return d.toLocaleDateString("vi-VN");
 }
 
+export async function updateServiceQuantities(serviceItems = []) {
+  if (!Array.isArray(serviceItems) || serviceItems.length === 0) return;
+
+  for (const item of serviceItems) {
+    const serviceId = item.serviceId || item.id;
+    const count = Number(item.count ?? item.quantity ?? item.qty ?? 0);
+    if (!serviceId || count <= 0) continue;
+
+    const service = await pb.collection("services").getOne(serviceId);
+    const available = Number(service?.quantity) || 0;
+    const nextQuantity = available - count;
+    if (nextQuantity < 0) {
+      throw new Error(`Số lượng dịch vụ "${service?.name || serviceId}" không đủ.`);
+    }
+
+    await pb.collection("services").update(serviceId, {
+      quantity: nextQuantity,
+    });
+  }
+}
+
 // overlap check: two ranges [aIn,aOut) and [bIn,bOut)
 export function overlaps(aIn, aOut, bIn, bOut) {
   return new Date(aIn) < new Date(bOut) && new Date(bIn) < new Date(aOut);

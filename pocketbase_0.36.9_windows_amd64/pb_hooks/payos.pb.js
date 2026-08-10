@@ -100,8 +100,20 @@ routerAdd("POST", "/api/payos-webhook", (e) => {
                 existingRecord = $app.findFirstRecordByFilter("bookings", `orderCode = ${orderCode}`);
             } catch (err) {}
 
-            // Nếu chưa có -> TẠO MỚI BẢN GHI VÀO POCKETBASE
-            if (!existingRecord) {
+            // Nếu đã có bản ghi booking thì cập nhật trạng thái thanh toán,
+            // nếu chưa có thì tạo mới (ứng với luồng webhook trực tiếp từ PayOS)
+            if (existingRecord) {
+                try {
+                    existingRecord.set("payStatus", "paid");
+                    existingRecord.set("status", "confirmed");
+                    existingRecord.set("total", data.amount);
+                    existingRecord.set("payMethod", "transfer");
+                    $app.save(existingRecord);
+                    console.log("[PayOS Webhook] Cập nhật booking đã tồn tại, orderCode:", orderCode);
+                } catch (err) {
+                    console.error("[PayOS Webhook] Lỗi khi cập nhật booking:", err.message);
+                }
+            } else {
                 const collection = $app.findCollectionByNameOrId("bookings");
                 const record = new Record(collection);
 
