@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
+import pb from '../lib/pocketbaseClient';
 
 // ==== CẤU HÌNH ====
-const BOT_ID = '7670933824876085253';
-const COZE_TOKEN = 'pat_ymPCXHtjs57UiGQW3sVhI07jkLtUfoaCQUDXehBtVP6OgFhtAhOjXmhW9qgXKnGA';
-const API_BASE = 'https://api.coze.com';
+
 // ===================
 
 function genUserId() {
@@ -17,59 +16,19 @@ function genUserId() {
 }
 
 async function callCoze(userMessage, conversationId, userId) {
-  const createRes = await fetch(`${API_BASE}/v3/chat`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${COZE_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      bot_id: BOT_ID,
-      user_id: userId,
-      stream: false,
-      auto_save_history: true,
-      conversation_id: conversationId || undefined,
-      additional_messages: [
-        { role: 'user', content: userMessage, content_type: 'text' },
-      ],
-    }),
-  });
-
-  if (!createRes.ok) {
-    throw new Error(`Tạo chat thất bại: HTTP ${createRes.status}`);
+  try {
+    const data = await pb.send('/api/coze/chat', {
+      method: 'POST',
+      body: {
+        message: userMessage,
+        conversationId,
+        userId,
+      },
+    });
+    return { answer: data.answer || '(Bot không trả lời)', conversationId: data.conversationId };
+  } catch (err) {
+    throw new Error(err?.message || 'Gọi backend thất bại');
   }
-  const createData = await createRes.json();
-  const chat = createData.data;
-  const newConversationId = chat.conversation_id;
-  const chatId = chat.id;
-
-  let status = chat.status;
-  let tries = 0;
-  while (status !== 'completed' && tries < 30) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const pollRes = await fetch(
-      `${API_BASE}/v3/chat/retrieve?chat_id=${chatId}&conversation_id=${newConversationId}`,
-      { headers: { Authorization: `Bearer ${COZE_TOKEN}` } }
-    );
-    const pollData = await pollRes.json();
-    status = pollData.data.status;
-    if (status === 'failed' || status === 'requires_action') {
-      throw new Error('Bot xử lý thất bại: ' + status);
-    }
-    tries++;
-  }
-
-  const msgRes = await fetch(
-    `${API_BASE}/v3/chat/message/list?chat_id=${chatId}&conversation_id=${newConversationId}`,
-    { headers: { Authorization: `Bearer ${COZE_TOKEN}` } }
-  );
-  const msgData = await msgRes.json();
-  const answer = (msgData.data || [])
-    .filter((m) => m.type === 'answer')
-    .map((m) => m.content)
-    .join('\n');
-
-  return { answer: answer || '(Bot không trả lời)', conversationId: newConversationId };
 }
 
 export default function Chatbot() {
