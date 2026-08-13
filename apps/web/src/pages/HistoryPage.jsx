@@ -248,7 +248,7 @@ export default function HistoryPage() {
                   {currentRv.done && (
                     <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>Cảm ơn bạn đã đóng góp đánh giá quý giá về dịch vụ của chúng tôi!</span>
+                      <span>Cảm ơn bạn đã đóng góp đánh giá về dịch vụ của chúng tôi!</span>
                     </div>
                   )}
                 </CardContent>
