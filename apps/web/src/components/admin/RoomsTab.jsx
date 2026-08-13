@@ -16,6 +16,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
     room_type_id: "",
     area: "Tầng 1",
     capacity: 2,
+    beds: 1,
     rules: "Cấm hút thuốc",
     amenities: "Wifi, Điều hòa",
     description: "Phòng tiện nghi tại Núi Homestay.",
@@ -55,6 +56,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
       room_type_id: room.room_type_id || types[0]?.id || "",
       area: room.area || "Tầng 1",
       capacity: room.capacity ?? 2,
+      beds: room.beds ?? 1,
       rules: Array.isArray(room.rules) ? room.rules.join(", ") : room.rules || "",
       amenities: Array.isArray(room.amenities) ? room.amenities.join(", ") : room.amenities || "",
       description: room.description || "",
@@ -75,6 +77,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
         room_type_id: types[0]?.id || "",
         area: "Tầng 1",
         capacity: 2,
+        beds: 1,
         rules: "Cấm hút thuốc",
         amenities: "Wifi, Điều hòa",
         description: "Phòng tiện nghi tại Núi Homestay.",
@@ -121,6 +124,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
       formData.append("room_type_id", roomForm.room_type_id);
       formData.append("area", roomForm.area);
       formData.append("capacity", Number(roomForm.capacity));
+      formData.append("beds", Number(roomForm.beds || 1));
       formData.append("description", roomForm.description);
       formData.append("status", "active");
 
@@ -355,8 +359,8 @@ export default function RoomsTab({ rooms, types, del, load }) {
                   {editingRoomId ? "Chỉnh sửa thông tin phòng" : "Thêm mới phòng"}
                 </h3>
 
-                <form onSubmit={handleSaveRoom} className="space-y-6">
-                  <div className="grid grid-cols-3 gap-4">
+                <form onSubmit={handleSaveRoom} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-600 block mb-1">Tên phòng</label>
                       <input
@@ -368,7 +372,7 @@ export default function RoomsTab({ rooms, types, del, load }) {
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Loại phòng ˅</label>
+                      <label className="text-xs font-semibold text-gray-600 block mb-1">Loại phòng</label>
                       <select
                         value={roomForm.room_type_id}
                         onChange={(e) => setRoomForm({ ...roomForm, room_type_id: e.target.value })}
@@ -382,7 +386,6 @@ export default function RoomsTab({ rooms, types, del, load }) {
                       </select>
                     </div>
 
-                    {/* Đoạn code của bạn được chèn tại đây */}
                     <div>
                       <label className="text-xs font-semibold text-gray-600 block mb-1">Sức chứa (số người)</label>
                       <input
@@ -397,7 +400,31 @@ export default function RoomsTab({ rooms, types, del, load }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 block mb-1">Số phòng ngủ</label>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        value={roomForm.beds}
+                        onChange={(e) => setRoomForm({ ...roomForm, beds: e.target.value })}
+                        className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 block mb-1">Khu vực</label>
+                      <input
+                        placeholder="Tầng 1 / Ngoài vườn"
+                        value={roomForm.area}
+                        onChange={(e) => setRoomForm({ ...roomForm, area: e.target.value })}
+                        className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-600 block mb-1">Quy định</label>
                       <input
@@ -413,15 +440,6 @@ export default function RoomsTab({ rooms, types, del, load }) {
                         placeholder="Wifi, Điều hòa, Nóng lạnh"
                         value={roomForm.amenities}
                         onChange={(e) => setRoomForm({ ...roomForm, amenities: e.target.value })}
-                        className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Khu vực</label>
-                      <input
-                        placeholder="Tầng 1 / Ngoài vườn"
-                        value={roomForm.area}
-                        onChange={(e) => setRoomForm({ ...roomForm, area: e.target.value })}
                         className="w-full border-b border-gray-400 py-1 focus:outline-none focus:border-sky-500"
                       />
                     </div>

@@ -82,10 +82,11 @@ export const api = {
     sort: "-created",
     expand: "roomCode,room_type_id",
   }),
-  reviews: (roomCode) =>
+  reviews: (roomId) =>
     pb.collection("reviews").getFullList({
       sort: "-created",
-      ...(roomCode ? { filter: pb.filter("roomCode = {:c}", { c: roomCode }) } : {}),
+      expand: "roomCode",
+      ...(roomId ? { filter: pb.filter("roomCode = {:id}", { id: roomId }) } : {}),
     }),
   customers: () =>
     pb.collection("users").getFullList({ filter: "role = 'customer' || role = ''", sort: "-created" }),

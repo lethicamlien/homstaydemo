@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { api } from "@/lib/store";
-import { Palmtree, LogOut, LayoutDashboard, BedDouble, Coffee, Users, CalendarRange, TrendingUp } from "lucide-react";
+import { Palmtree, LogOut, LayoutDashboard, BedDouble, Coffee, Users, CalendarRange, TrendingUp, MessageSquareText } from "lucide-react";
 
 import OverviewTab from "@/components/admin/OverviewTab";
 import RoomsTab from "@/components/admin/RoomsTab";
@@ -11,6 +11,7 @@ import ServicesTab from "@/components/admin/ServicesTab";
 import CustomersTab from "@/components/admin/CustomersTab";
 import BookingsTab from "@/components/admin/BookingsTab";
 import StatsTab from "@/components/admin/StatsTab";
+import ReviewTab from "@/components/admin/ReviewTab";
 
 const TABS = [
   { k: "overview", l: "Tổng quan", i: LayoutDashboard },
@@ -18,6 +19,7 @@ const TABS = [
   { k: "services", l: "Dịch vụ", i: Coffee },
   { k: "customers", l: "Khách hàng", i: Users },
   { k: "bookings", l: "Đặt phòng", i: CalendarRange },
+  { k: "reviews", l: "Đánh giá", i: MessageSquareText },
   { k: "stats", l: "Thống kê", i: TrendingUp },
 ];
 
@@ -137,6 +139,7 @@ export default function AdminPage() {
         {tab === "services" && <ServicesTab services={services} del={del} load={load} />}
         {tab === "customers" && <CustomersTab customers={customers} del={del} />}
         {tab === "bookings" && <BookingsTab bookings={bookings} setStatus={setStatus} del={del} />}
+        {tab === "reviews" && <ReviewTab reviews={reviews} load={load} />}
         {tab === "stats" && <StatsTab revenue={revenue} bookings={bookings} chart={chart} />}
       </div>
     </div>
