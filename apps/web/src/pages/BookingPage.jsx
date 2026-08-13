@@ -278,7 +278,7 @@ export default function BookingPage() {
                 <Row l="Loại phòng" v={roomTypeName} />
                 <Row l="Nhận phòng" v={fmtDate(st.checkIn)} />
                 <Row l="Trả phòng" v={fmtDate(st.checkOut)} />
-                <Row l="Thời gian" v={`${n} đêm`} />
+                <Row l="Thời gian" v={`${n} Ngày`} />
                 <Row l="Số lượng khách" v={`${st.guests} người`} />
                 <Separator className="my-2" />
                 <Row l="Giá phòng / đêm" v={fmtVND(roomPrice)} />

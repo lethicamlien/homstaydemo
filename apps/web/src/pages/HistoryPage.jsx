@@ -176,7 +176,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-primary" />
                       <span>
-                        Thời lượng lưu trú: <b>{b.nights} đêm</b>
+                        Thời lượng lưu trú: <b>{b.nights} Ngày</b>
                       </span>
                     </div>
                   </div>

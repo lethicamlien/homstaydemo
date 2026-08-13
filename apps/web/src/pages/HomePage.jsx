@@ -189,7 +189,7 @@ export default function HomePage() {
                       {fmt(roomPrice)}
                     </span>
                     <span className="text-xs text-muted-foreground font-normal">
-                      / đêm
+                      / Ngày
                     </span>
                   </div>
 

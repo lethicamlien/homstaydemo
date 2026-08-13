@@ -226,7 +226,7 @@ export default function BookingDetailDialog({ booking, onClose, onUpdateStatus, 
               <b>
                 {fmtDate(bookingData.checkIn)} → {fmtDate(bookingData.checkOut)}
               </b>{" "}
-              ({bookingData.nights || 1} đêm)
+              ({bookingData.nights || 1} Ngày)
             </p>
             <p>
               Tiền phòng: <b>{fmtVND(roomBaseTotal)}</b>

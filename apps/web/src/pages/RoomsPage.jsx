@@ -203,7 +203,7 @@ export default function RoomsPage() {
                           {fmt(roomPrice)}
                         </span>
                         <span className="text-xs text-muted-foreground block font-normal">
-                          / đêm
+                          / Ngày
                         </span>
                       </div>
                     </div>

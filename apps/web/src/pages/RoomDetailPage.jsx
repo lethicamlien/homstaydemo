@@ -242,7 +242,7 @@ export default function RoomDetailPage() {
               <span className="text-3xl font-extrabold text-primary">
                 {fmt(roomPrice)}
               </span>
-              <span className="text-sm text-muted-foreground">/ đêm</span>
+              <span className="text-sm text-muted-foreground">/ Ngày</span>
             </div>
 
             <h1 className="font-display text-3xl md:text-4xl font-extrabold mt-2">
