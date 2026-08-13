@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
 import { fmtVND, updateServiceQuantities } from "@/lib/store";
 import { Loader2, ExternalLink, Copy, Check, QrCode } from "lucide-react";
-import QrImage from "@/components/QrImage";
+import QrImage from "@/components/booking/QrImage";
 import { Button } from "@/components/ui/button";
 
 export default function TransferPaymentModal({ bookingData, onError }) {

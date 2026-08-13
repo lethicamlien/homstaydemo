@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
 import { fmt, fmtVND } from "@/lib/store";
-import DateRangePicker from "@/components/DateRangePicker";
-import BookingAvailabilityAlert from "@/components/BookingAvailabilityAlert";
+import DateRangePicker from "@/components/common/DateRangePicker";
+import BookingAvailabilityAlert from "@/components/common/BookingAvailabilityAlert";
 
 /**
  * MODAL ĐẶT PHÒNG CHO KHÁCH TRỰC TIẾP (WALK-IN)

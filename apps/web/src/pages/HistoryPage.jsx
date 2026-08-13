@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Link } from "react-router-dom";
-import SiteLayout from "@/components/SiteLayout";
+import SiteLayout from "@/components/layout/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { fmtVND, fmtDate } from "@/lib/store";

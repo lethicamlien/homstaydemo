@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import SiteLayout from "@/components/SiteLayout";
+import SiteLayout from "@/components/layout/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
 import { api, fmt, overlaps } from "@/lib/store";
 import { useAuth } from "@/lib/AuthContext";
 
 // Components đã tái sử dụng
-import DateRangePicker from "@/components/DateRangePicker";
-import BookingAvailabilityAlert from "@/components/BookingAvailabilityAlert";
+import DateRangePicker from "@/components/common/DateRangePicker";
+import BookingAvailabilityAlert from "@/components/common/BookingAvailabilityAlert";
 
 // Lucide Icons
 import {

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
-import SiteLayout from "@/components/SiteLayout";
+import SiteLayout from "@/components/layout/SiteLayout";
 import pb from "@/lib/pocketbaseClient";
 import { api, fmtVND, nights, genCode, fmtDate } from "@/lib/store";
 import { useAuth } from "@/lib/AuthContext";
-import TransferPaymentModal from "@/components/TransferPaymentModal";
+import TransferPaymentModal from "@/components/booking/TransferPaymentModal";
 
 import { 
   Minus, Plus, CreditCard, Wallet, Users, Bed, ConciergeBell, AlertCircle 

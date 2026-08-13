@@ -24,7 +24,7 @@ routerAdd("POST", "/api/coze/chat", (e) => {
       return e.json(400, { error: "Thiếu message hoặc userId" });
     }
 
-    // ---- B1: Tạo chat ----
+    // ---- Tạo chat ----
     const createRes = $http.send({
       url: `${COZE_API_BASE}/v3/chat`,
       method: "POST",
@@ -67,7 +67,7 @@ routerAdd("POST", "/api/coze/chat", (e) => {
     const newConversationId = chat.conversation_id;
     const chatId = chat.id;
 
-    // ---- B2: Poll trạng thái (có nghỉ thật giữa các lần) ----
+    // ---- Poll trạng thái (có nghỉ thật giữa các lần) ----
     let status = chat.status;
     let tries = 0;
     const maxTries = 20;
@@ -114,7 +114,7 @@ routerAdd("POST", "/api/coze/chat", (e) => {
       );
     }
 
-    // ---- B3: Lấy danh sách tin nhắn trả lời ----
+    // ---- Lấy danh sách tin nhắn trả lời ----
     const msgRes = $http.send({
       url: `${COZE_API_BASE}/v3/chat/message/list?chat_id=${chatId}&conversation_id=${newConversationId}`,
       method: "GET",

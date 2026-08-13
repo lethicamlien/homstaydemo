@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import SiteLayout from "@/components/SiteLayout";
+import SiteLayout from "@/components/layout/SiteLayout";
 import { api, fmt, overlaps } from "@/lib/store";
-import SearchBar from "@/components/SearchBar";
+import SearchBar from "@/components/common/SearchBar";
 import pb from "@/lib/pocketbaseClient";
 
 import {

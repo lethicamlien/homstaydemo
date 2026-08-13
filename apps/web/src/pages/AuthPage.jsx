@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SiteLayout from "@/components/SiteLayout";
+import SiteLayout from "@/components/layout/SiteLayout";
 import { useAuth } from "@/lib/AuthContext";
 import { Palmtree, ArrowLeft } from "lucide-react";
 

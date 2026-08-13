@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SiteLayout from "@/components/SiteLayout";
-import SearchBar from "@/components/SearchBar";
+import SiteLayout from "@/components/layout/SiteLayout";
+import SearchBar from "@/components/common/SearchBar";
 import { api, fmt } from "@/lib/store";
 import pb from "@/lib/pocketbaseClient";
 import { ABOUT_IMAGES } from "@/assets/aboutImages";

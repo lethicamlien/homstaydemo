@@ -3,10 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 import pb from '../lib/pocketbaseClient';
 
-// ==== CẤU HÌNH ====
-
-// ===================
-
 function genUserId() {
   const saved = sessionStorage.getItem('coze_user_id');
   if (saved) return saved;
