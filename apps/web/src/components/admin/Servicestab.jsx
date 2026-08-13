@@ -89,7 +89,7 @@ export default function ServicesTab({ services, del, load }) {
 
   const getImageUrl = (record, filename) => {
     if (!record || !filename) return null;
-    return pb.files.getUrl(record, filename);
+    return pb.files.getURL(record, filename);
   };
 
   return (

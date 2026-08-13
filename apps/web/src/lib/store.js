@@ -16,25 +16,53 @@ export function fmtDate(s) {
   return d.toLocaleDateString("vi-VN");
 }
 
-export async function updateServiceQuantities(serviceItems = []) {
+export async function applyServiceQuantityDelta(serviceItems = []) {
   if (!Array.isArray(serviceItems) || serviceItems.length === 0) return;
 
   for (const item of serviceItems) {
     const serviceId = item.serviceId || item.id;
-    const count = Number(item.count ?? item.quantity ?? item.qty ?? 0);
-    if (!serviceId || count <= 0) continue;
+    const delta = Number(item.count ?? item.quantity ?? item.qty ?? 0);
+    if (!serviceId || delta === 0) continue;
 
-    const service = await pb.collection("services").getOne(serviceId);
-    const available = Number(service?.quantity) || 0;
-    const nextQuantity = available - count;
-    if (nextQuantity < 0) {
-      throw new Error(`Số lượng dịch vụ "${service?.name || serviceId}" không đủ.`);
+    try {
+      const service = await pb.collection("services").getOne(serviceId);
+      const stockQty = Number(service?.quantity ?? 0);
+      const isStockTracked =
+        service?.quantity !== "" &&
+        service?.quantity !== null &&
+        service?.quantity !== undefined &&
+        Number.isFinite(stockQty) &&
+        stockQty > 0;
+
+      if (!isStockTracked) continue;
+
+      const available = stockQty;
+      const nextQuantity = available - delta;
+
+      if (nextQuantity < 0) {
+        throw new Error(`Số lượng dịch vụ "${service?.name || serviceId}" không đủ.`);
+      }
+
+      await pb.collection("services").update(serviceId, {
+        quantity: nextQuantity,
+      });
+    } catch (err) {
+      if (err?.status === 404 || err?.response?.code === 404) {
+        console.warn(`Bỏ qua dịch vụ không tồn tại khi cập nhật kho: ${serviceId}`);
+        continue;
+      }
+      throw err;
     }
-
-    await pb.collection("services").update(serviceId, {
-      quantity: nextQuantity,
-    });
   }
+}
+
+export async function updateServiceQuantities(serviceItems = []) {
+  return applyServiceQuantityDelta(
+    (serviceItems || []).map((item) => ({
+      ...item,
+      count: Math.max(0, Number(item.count ?? item.quantity ?? item.qty ?? 0)),
+    }))
+  );
 }
 
 // overlap check: two ranges [aIn,aOut) and [bIn,bOut)

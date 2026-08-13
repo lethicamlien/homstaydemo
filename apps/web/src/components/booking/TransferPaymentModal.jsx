@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
-import { fmtVND, updateServiceQuantities } from "@/lib/store";
+import { fmtVND, applyServiceQuantityDelta } from "@/lib/store";
 import { Loader2, ExternalLink, Copy, Check, QrCode } from "lucide-react";
 import QrImage from "@/components/booking/QrImage";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ export default function TransferPaymentModal({ bookingData, onError }) {
 
         // 1. Cập nhật tồn kho dịch vụ trước khi tạo booking
         if (Array.isArray(bookingData?.serviceItems) && bookingData.serviceItems.length) {
-          await updateServiceQuantities(bookingData.serviceItems);
+          await applyServiceQuantityDelta(bookingData.serviceItems);
         }
 
         // 2. Tạo bản ghi Booking trong PocketBase

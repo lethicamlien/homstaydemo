@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlusCircle } from "lucide-react";
-import { fmt } from "@/lib/store";
+import { fmt, fmtVND } from "@/lib/store";
 import { STATUS_COLOR, STATUS_LABEL } from "./ReceptionConstants";
 
 /**
@@ -53,9 +53,14 @@ export default function ReceptionGridView({
                   {fmt(price)}/đêm
                 </p>
                 {st.b ? (
-                  <p className="text-xs mt-2 font-bold text-primary truncate">
-                    👤 {st.b.guestName}
-                  </p>
+                  <>
+                    <p className="text-xs mt-2 font-bold text-primary truncate">
+                      👤 {st.b.guestName}
+                    </p>
+                    <p className="text-[11px] mt-1 text-emerald-700 font-semibold">
+                      {fmtVND(Number(st.b.total || 0))}
+                    </p>
+                  </>
                 ) : (
                   <p className="text-xs mt-2 text-muted-foreground">
                     🟢 Phòng trống sẵn sàng

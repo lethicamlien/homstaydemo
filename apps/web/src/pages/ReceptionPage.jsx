@@ -48,15 +48,23 @@ export default function ReceptionPage() {
     try {
       const [roomsData, bookingsData] = await Promise.all([
         pb.collection("rooms").getFullList({ expand: "room_type_id,room_type,roomType" }),
-        // Expand thêm roomTypeName để hiển thị đầy đủ thông tin khi query
         pb.collection("bookings").getFullList({ expand: "roomCode,roomTypeName,room_type_id" }),
       ]);
       setRooms(roomsData);
       setBookings(bookingsData);
+      setSel((prev) => {
+        if (!prev) return prev;
+        return bookingsData.find((b) => b.id === prev.id) || prev;
+      });
     } catch (err) {
-      // Fallback về helper cũ nếu lỗi
       api.rooms().then(setRooms).catch(() => {});
-      api.bookings().then(setBookings).catch(() => {});
+      api.bookings().then((data) => {
+        setBookings(data);
+        setSel((prev) => {
+          if (!prev) return prev;
+          return data.find((b) => b.id === prev.id) || prev;
+        });
+      }).catch(() => {});
     }
   };
 
@@ -382,6 +390,7 @@ export default function ReceptionPage() {
         booking={sel}
         onClose={() => setSel(null)}
         onUpdateStatus={updateStatus}
+        onBookingUpdated={load}
       />
 
       <WalkInBookingModal
