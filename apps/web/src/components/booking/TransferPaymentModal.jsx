@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import pb from "@/lib/pocketbaseClient";
-import { fmtVND, applyServiceQuantityDelta } from "@/lib/store";
+import { fmtVND, applyServiceQuantityDelta, createPayment } from "@/lib/store";
 import { Loader2, ExternalLink, Copy, Check, QrCode } from "lucide-react";
 import QrImage from "@/components/booking/QrImage";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function TransferPaymentModal({ bookingData, onError }) {
   const nav = useNavigate();
   const [createdBooking, setCreatedBooking] = useState(null);
+  const [createdPayment, setCreatedPayment] = useState(null);
   const [payOsData, setPayOsData] = useState({ qrCode: "", checkoutUrl: "" });
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -20,36 +21,39 @@ export default function TransferPaymentModal({ bookingData, onError }) {
       try {
         setLoading(true);
 
-        // Tạo orderCode ngẫu nhiên dạng số nguyên cho PayOS.
-        // Không tạo booking sớm trong PocketBase trước khi giao dịch đã được xác nhận.
         const numericOrderCode = Number(String(Date.now()).slice(-6));
-        const pendingKey = `pending_transfer_booking_${numericOrderCode}`;
-        const pendingPayload = {
+        const bookingPayload = {
           ...bookingData,
-          orderCode: numericOrderCode,
-          payMethod: "transfer",
           payStatus: "unpaid",
           status: "pending",
         };
-
-        sessionStorage.setItem(pendingKey, JSON.stringify(pendingPayload));
 
         if (Array.isArray(bookingData?.serviceItems) && bookingData.serviceItems.length) {
           await applyServiceQuantityDelta(bookingData.serviceItems);
         }
 
-        if (!isMounted) return;
-        setCreatedBooking({
-          ...pendingPayload,
-          code: pendingPayload.code || `TR-${numericOrderCode}`,
-          total: Number(bookingData?.total || 0),
+        // Tạo booking tạm dạng pending
+        const booking = await pb.collection("bookings").create(bookingPayload);
+        
+        // Tạo payment tạm dạng pending
+        const payment = await createPayment({
+          booking: booking.id,
+          amount: bookingData?.total,
+          method: "transfer",
+          status: "pending",
+          transactionCode: String(numericOrderCode),
         });
 
+        if (!isMounted) return;
+        setCreatedBooking(booking);
+        setCreatedPayment(payment);
+
+        // Gọi Backend lấy thông tin QR PayOS
         const res = await pb.send("/api/create-payos-payment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            bookingId: null,
+            bookingId: booking.id,
             amount: Number(bookingData?.total || 0),
             orderCode: numericOrderCode,
           }),
@@ -80,46 +84,28 @@ export default function TransferPaymentModal({ bookingData, onError }) {
     };
   }, []);
 
+  // Lắng nghe Realtime khi Payment đổi status thành 'completed' từ Webhook
   useEffect(() => {
-    if (!createdBooking?.orderCode) return;
+    if (!createdPayment?.id) return;
 
-    const paymentOrderCode = Number(createdBooking.orderCode);
-    const pendingKey = `pending_transfer_booking_${paymentOrderCode}`;
+    const paymentOrderCode = String(createdPayment.transactionCode);
 
-    const unsubscribe = pb.collection("bookings").subscribe("*", async (e) => {
-      const recordOrderCode = Number(e?.record?.orderCode ?? 0);
+    const unsubscribe = pb.collection("payments").subscribe("*", async (e) => {
+      const recordOrderCode = String(e?.record?.transactionCode ?? "");
       if (recordOrderCode !== paymentOrderCode) return;
 
-      if (e.action === "create" || e.action === "update") {
-        if (e.record.payStatus === "paid") {
-          try {
-            const pending = JSON.parse(sessionStorage.getItem(pendingKey) || "null");
-            if (pending) {
-              await pb.collection("bookings").update(e.record.id, {
-                ...pending,
-                orderCode: paymentOrderCode,
-                payMethod: "transfer",
-                payStatus: "paid",
-                status: "confirmed",
-              });
-            }
-          } catch (err) {
-            console.error("Lỗi cập nhật booking sau khi thanh toán:", err);
-          } finally {
-            sessionStorage.removeItem(pendingKey);
-            nav(`/success/${e.record.id}`, { replace: true });
-          }
-        }
+      if ((e.action === "create" || e.action === "update") && e.record.status === "completed") {
+        nav(`/success/${createdBooking.id}`, { replace: true });
       }
     });
 
     return () => {
-      pb.collection("bookings").unsubscribe("*");
+      pb.collection("payments").unsubscribe("*");
     };
-  }, [createdBooking?.orderCode, nav]);
+  }, [createdBooking?.id, createdPayment?.id, nav]);
 
   const copyCode = () => {
-    const value = createdBooking?.orderCode || createdBooking?.code;
+    const value = createdPayment?.transactionCode || createdBooking?.code;
     if (value) {
       navigator.clipboard.writeText(String(value));
       setCopied(true);
@@ -144,16 +130,16 @@ export default function TransferPaymentModal({ bookingData, onError }) {
       </div>
 
       <div className="flex flex-col items-center justify-center">
-     <div className="p-3 bg-white rounded-xl shadow-md border border-blue-100 min-h-[200px] flex items-center justify-center">
-  {payOsData.qrCode ? (
-    <QrImage value={payOsData.qrCode} size={240} />
-  ) : (
-    <p className="text-sm text-red-500">Không hiển thị được mã QR PayOS</p>
-  )}
-</div>
+        <div className="p-3 bg-white rounded-xl shadow-md border border-blue-100 min-h-[200px] flex items-center justify-center">
+          {payOsData.qrCode ? (
+            <QrImage value={payOsData.qrCode} size={240} />
+          ) : (
+            <p className="text-sm text-red-500">Không hiển thị được mã QR PayOS</p>
+          )}
+        </div>
         <div className="mt-4 text-sm space-y-1.5 bg-blue-50/80 p-3 rounded-lg w-full max-w-sm">
           <p className="text-muted-foreground flex items-center justify-center">
-            Mã đơn hàng: <strong className="text-foreground ml-1">{createdBooking?.orderCode || createdBooking?.code}</strong>
+            Mã đơn hàng: <strong className="text-foreground ml-1">{createdPayment?.transactionCode || createdBooking?.code}</strong>
             <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={copyCode}>
               {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
             </Button>
@@ -164,7 +150,7 @@ export default function TransferPaymentModal({ bookingData, onError }) {
         </div>
       </div>
 
-     {payOsData.checkoutUrl && (
+      {payOsData.checkoutUrl && (
         <div className="pt-1">
           <a href={payOsData.checkoutUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" className="border-blue-500 text-blue-600 hover:bg-blue-50">

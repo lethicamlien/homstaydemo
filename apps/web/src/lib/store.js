@@ -74,6 +74,36 @@ export function genCode(prefix = "BK") {
   return prefix + Math.floor(1000 + Math.random() * 9000);
 }
 
+// ===== Payments helpers (collection "payments" tách riêng khỏi "bookings") =====
+
+export function genOrderCode() {
+  return Number(String(Date.now()).slice(-6));
+}
+
+export async function createPayment({ booking, amount, method, status = "pending", transactionCode }) {
+  return pb.collection("payments").create({
+    booking,
+    amount: Number(amount) || 0,
+    method,
+    status,
+    ...(transactionCode !== undefined && transactionCode !== null
+      ? { transactionCode: String(transactionCode) }
+      : {}),
+  });
+}
+
+export async function getPaymentByBooking(bookingId) {
+  if (!bookingId) return null;
+  try {
+    return await pb
+      .collection("payments")
+      .getFirstListItem(pb.filter("booking = {:id}", { id: bookingId }));
+  } catch (err) {
+    if (err?.status === 404) return null;
+    throw err;
+  }
+}
+
 export const api = {
   rooms: () => pb.collection("rooms").getFullList({ expand: "room_type_id" }),
   roomTypes: () => pb.collection("room_types").getFullList({ sort: "price" }),
