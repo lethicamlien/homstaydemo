@@ -20,33 +20,37 @@ export default function TransferPaymentModal({ bookingData, onError }) {
       try {
         setLoading(true);
 
-        // Tạo orderCode ngẫu nhiên dạng số nguyên cho PayOS
+        // Tạo orderCode ngẫu nhiên dạng số nguyên cho PayOS.
+        // Không tạo booking sớm trong PocketBase trước khi giao dịch đã được xác nhận.
         const numericOrderCode = Number(String(Date.now()).slice(-6));
+        const pendingKey = `pending_transfer_booking_${numericOrderCode}`;
+        const pendingPayload = {
+          ...bookingData,
+          orderCode: numericOrderCode,
+          payMethod: "transfer",
+          payStatus: "unpaid",
+          status: "pending",
+        };
 
-        // 1. Cập nhật tồn kho dịch vụ trước khi tạo booking
+        sessionStorage.setItem(pendingKey, JSON.stringify(pendingPayload));
+
         if (Array.isArray(bookingData?.serviceItems) && bookingData.serviceItems.length) {
           await applyServiceQuantityDelta(bookingData.serviceItems);
         }
 
-        // 2. Tạo bản ghi Booking trong PocketBase
-        const rec = await pb.collection("bookings").create({
-          ...bookingData,
-          payMethod: "transfer",
-          payStatus: "unpaid",
-          status: "pending",
-          orderCode: numericOrderCode,
+        if (!isMounted) return;
+        setCreatedBooking({
+          ...pendingPayload,
+          code: pendingPayload.code || `TR-${numericOrderCode}`,
+          total: Number(bookingData?.total || 0),
         });
 
-        if (!isMounted) return;
-        setCreatedBooking(rec);
-
-        // 2. Gọi backend PocketBase để đăng ký đơn hàng sang PayOS
         const res = await pb.send("/api/create-payos-payment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            bookingId: rec.id,
-            amount: rec.total,
+            bookingId: null,
+            amount: Number(bookingData?.total || 0),
             orderCode: numericOrderCode,
           }),
         });
@@ -76,24 +80,48 @@ export default function TransferPaymentModal({ bookingData, onError }) {
     };
   }, []);
 
-  // 3. Đăng ký Realtime PocketBase (Chờ Webhook cập nhật status thành 'paid')
   useEffect(() => {
-    if (!createdBooking?.id) return;
+    if (!createdBooking?.orderCode) return;
 
-    pb.collection("bookings").subscribe(createdBooking.id, (e) => {
-      if (e.action === "update" && e.record.payStatus === "paid") {
-        nav(`/success/${createdBooking.id}`, { replace: true });
+    const paymentOrderCode = Number(createdBooking.orderCode);
+    const pendingKey = `pending_transfer_booking_${paymentOrderCode}`;
+
+    const unsubscribe = pb.collection("bookings").subscribe("*", async (e) => {
+      const recordOrderCode = Number(e?.record?.orderCode ?? 0);
+      if (recordOrderCode !== paymentOrderCode) return;
+
+      if (e.action === "create" || e.action === "update") {
+        if (e.record.payStatus === "paid") {
+          try {
+            const pending = JSON.parse(sessionStorage.getItem(pendingKey) || "null");
+            if (pending) {
+              await pb.collection("bookings").update(e.record.id, {
+                ...pending,
+                orderCode: paymentOrderCode,
+                payMethod: "transfer",
+                payStatus: "paid",
+                status: "confirmed",
+              });
+            }
+          } catch (err) {
+            console.error("Lỗi cập nhật booking sau khi thanh toán:", err);
+          } finally {
+            sessionStorage.removeItem(pendingKey);
+            nav(`/success/${e.record.id}`, { replace: true });
+          }
+        }
       }
     });
 
     return () => {
-      pb.collection("bookings").unsubscribe(createdBooking.id);
+      pb.collection("bookings").unsubscribe("*");
     };
-  }, [createdBooking?.id, nav]);
+  }, [createdBooking?.orderCode, nav]);
 
   const copyCode = () => {
-    if (createdBooking?.code) {
-      navigator.clipboard.writeText(createdBooking.code);
+    const value = createdBooking?.orderCode || createdBooking?.code;
+    if (value) {
+      navigator.clipboard.writeText(String(value));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
